@@ -32,31 +32,16 @@ create_shared_directory() {
     # Make uploads directory writable for web uploads
     chmod 775 "$SHARED_DIR"/uploads
     
-    # Create welcome file
-    cat > "$SHARED_DIR/README.txt" << 'EOF'
-USB Serial Console - Shared File Directory
-==========================================
-
-This directory is accessible via multiple protocols:
-
-HTTP/Web:  http://192.168.44.1/
-TFTP:      tftp://192.168.44.1/
-SMB/CIFS:  \\192.168.44.1\shared
-
-Subdirectories:
-- uploads/   - Upload files here
-- downloads/ - Download files from here  
-- firmware/  - Device firmware files
-- configs/   - Configuration backups
-- logs/      - Log files
-
-Usage Examples:
-- Web browser: Navigate to http://192.168.44.1/
-- TFTP upload: tftp 192.168.44.1 -c put myfile.bin
-- SMB mount:   sudo mount -t cifs //192.168.44.1/shared /mnt/usb
-
-Generated: $(date)
-EOF
+    # Create welcome file from template
+    if [[ -f "templates/README.txt" ]]; then
+        sed -e "s|{{WIFI_IPV4_GATEWAY}}|${WIFI_IPV4_GATEWAY}|g" \
+            -e "s|{{CURRENT_DATE}}|$(date)|g" \
+            "templates/README.txt" > "$SHARED_DIR/README.txt"
+    else
+        log "Warning: README template not found, creating basic file"
+        echo "USB Serial Console - Shared Directory" > "$SHARED_DIR/README.txt"
+        echo "Generated: $(date)" >> "$SHARED_DIR/README.txt"
+    fi
     
     log "Shared directory created successfully"
 }

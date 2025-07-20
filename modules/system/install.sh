@@ -41,20 +41,17 @@ main() {
 create_logrotate_config() {
     log_info "Setting up log rotation..."
     
-    cat > /etc/logrotate.d/usbserial << 'EOF'
-/var/log/usbserial/*.log {
-    daily
-    missingok
-    rotate 7
-    compress
-    delaycompress
-    notifempty
-    create 644 root root
-    postrotate
-        systemctl reload rsyslog > /dev/null 2>&1 || true
-    endscript
-}
-EOF
+    # Process and deploy logrotate template
+    if ! process_template \
+        "templates/logrotate.conf" \
+        "/etc/logrotate.d/usbserial" \
+        "LOG_DIR" "${LOG_DIR}"; then
+        log_error "Failed to create logrotate configuration"
+        return 1
+    fi
+    
+    # Set proper permissions
+    chmod 644 /etc/logrotate.d/usbserial
 }
 
 configure_system_settings() {

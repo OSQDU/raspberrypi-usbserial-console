@@ -45,54 +45,27 @@ configure_serial_permissions() {
 create_serial_scripts() {
     log_info "Creating serial console scripts..."
     
-    # Create console access scripts
-    cat > /usr/local/bin/console << 'EOF'
-#!/bin/bash
-# Quick serial console access script
-
-DEVICE="${1:-/dev/usbserial-1}"
-
-if [[ ! -e "$DEVICE" ]]; then
-    echo "Error: Serial device $DEVICE not found"
-    echo "Available devices:"
-    ls /dev/usbserial-* 2>/dev/null || echo "  No USB serial devices found"
-    exit 1
-fi
-
-echo "Connecting to $DEVICE..."
-echo "Press Ctrl+A X to exit minicom"
-exec minicom -D "$DEVICE"
-EOF
+    # Create console access script from template
+    if ! process_template \
+        "templates/console.sh" \
+        "${SCRIPT_DIR}/console" \
+        "USB_DEVICE_PREFIX" "${USB_DEVICE_PREFIX}"; then
+        log_error "Failed to create console script"
+        return 1
+    fi
     
-    chmod +x /usr/local/bin/console
+    chmod +x "${SCRIPT_DIR}/console"
     
-    # Create device listing script
-    cat > /usr/local/bin/list-consoles << 'EOF'
-#!/bin/bash
-# List available serial console devices
-
-echo "USB Serial Console Devices:"
-echo "=========================="
-
-if ls /dev/usbserial-* >/dev/null 2>&1; then
-    for device in /dev/usbserial-*; do
-        device_name=$(basename "$device")
-        if [[ -c "$device" ]]; then
-            echo "  $device_name -> $device"
-        fi
-    done
-else
-    echo "  No USB serial devices found"
-    echo ""
-    echo "Make sure USB serial adapters are connected and udev rules are loaded."
-fi
-
-echo ""
-echo "Usage: console [device]"
-echo "Example: console /dev/usbserial-1.0"
-EOF
+    # Create device listing script from template
+    if ! process_template \
+        "templates/list-consoles.sh" \
+        "${SCRIPT_DIR}/list-consoles" \
+        "USB_DEVICE_PREFIX" "${USB_DEVICE_PREFIX}"; then
+        log_error "Failed to create list-consoles script"
+        return 1
+    fi
     
-    chmod +x /usr/local/bin/list-consoles
+    chmod +x "${SCRIPT_DIR}/list-consoles"
     
     log_info "Created console access scripts:"
     log_info "  console [device]     - Connect to serial device"

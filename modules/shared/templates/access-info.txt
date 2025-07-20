@@ -1,0 +1,30 @@
+=== Unified File Sharing Setup Complete ===
+
+Shared Directory: {{SHARED_DIR}}
+
+Access Methods:
+1. HTTP/Web Browser:
+   URL: http://{{WIFI_IPV4_GATEWAY}}/
+   Upload: http://{{WIFI_IPV4_GATEWAY}}/upload/
+
+2. TFTP:
+   Upload: tftp {{WIFI_IPV4_GATEWAY}} -c put filename
+   Download: tftp {{WIFI_IPV4_GATEWAY}} -c get filename
+
+3. SMB/CIFS:
+   Windows: \\{{WIFI_IPV4_GATEWAY}}\shared
+   Linux: sudo mount -t cifs //{{WIFI_IPV4_GATEWAY}}/shared /mnt/point
+   macOS: smb://{{WIFI_IPV4_GATEWAY}}/shared
+
+Default Credentials:
+- SMB Username: {{DEFAULT_SAMBA_USER}}
+- SMB Password: {{DEFAULT_SAMBA_PASSWORD}}
+
+Directory Structure:
+{{SHARED_DIR}}/
+├── uploads/     (file uploads)
+├── downloads/   (file downloads)
+├── firmware/    (device firmware)
+├── configs/     (configuration backups)
+├── logs/        (log files)
+└── README.txt   (access instructions)

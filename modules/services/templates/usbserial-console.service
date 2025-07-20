@@ -1,0 +1,13 @@
+[Unit]
+Description=USB Serial Console Access Point
+After=multi-user.target network.target
+Wants=hostapd.service dnsmasq.service nginx.service tftpd-hpa.service smbd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart={{SCRIPT_DIR}}/usbserial-startup
+TimeoutStartSec={{SERVICE_START_TIMEOUT}}
+
+[Install]
+WantedBy=multi-user.target
