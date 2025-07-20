@@ -103,7 +103,7 @@ deploy_hostapd_config() {
         "hostapd.conf.template" \
         "/etc/hostapd/hostapd.conf" \
         "WIFI_INTERFACE" "$wifi_interface" \
-        "COUNTRY_CODE" "US"; then
+        "COUNTRY_CODE" "${WIFI_COUNTRY_CODE}"; then
         log_error "Failed to process hostapd template"
         return 1
     fi
@@ -185,7 +185,7 @@ generate_wpa_psk() {
     fi
     
     log_info "WiFi credentials:"
-    log_info "  SSID: USBSerial-Console"
+    log_info "  SSID: ${WIFI_SSID}"
     log_info "  Password: $clean_mac"
     
     log_info "WPA PSK generated successfully"

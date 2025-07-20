@@ -3,14 +3,24 @@
 
 set -euo pipefail
 
-# Configuration constants
-readonly WIFI_INTERFACE="wlan0"
-readonly ETH_INTERFACE="eth0"
-readonly WIFI_IPV4_NETWORK="192.168.44.0/24"
-readonly WIFI_IPV6_ULA="2001:db8:44::/64"  # Fallback ULA prefix
-readonly TEMPLATE_PATH="/usr/local/share/usbserial/templates/nftables.conf.template"
-readonly MAX_RETRIES=3
-readonly RETRY_DELAY=2
+# Load global configuration
+if [[ -f "/usr/local/share/usbserial/global.conf" ]]; then
+    source "/usr/local/share/usbserial/global.conf"
+elif [[ -f "../../../config/global.conf" ]]; then
+    source "../../../config/global.conf"
+else
+    # Fallback defaults
+    export WIFI_INTERFACE="wlan0"
+    export ETH_INTERFACE="eth0"
+    export WIFI_IPV4_NETWORK="192.168.44.0/24"
+    export WIFI_IPV6_ULA="2001:db8:44::/64"
+    export TEMPLATE_DIR="/usr/local/share/usbserial/templates"
+    export MAX_RETRIES=3
+    export RETRY_DELAY=2
+fi
+
+# Configuration constants using global variables
+readonly NFTABLES_TEMPLATE="${NFTABLES_TEMPLATE:-${TEMPLATE_DIR}/nftables.conf.template}"
 
 # Logging with error levels
 log() {
@@ -95,15 +105,15 @@ check_dependency() {
 
 # Validate template file exists and is readable
 validate_template() {
-    if [[ ! -f "$TEMPLATE_PATH" ]]; then
-        error_exit "Template file not found: $TEMPLATE_PATH"
+    if [[ ! -f "$NFTABLES_TEMPLATE" ]]; then
+        error_exit "Template file not found: $NFTABLES_TEMPLATE"
     fi
     
-    if [[ ! -r "$TEMPLATE_PATH" ]]; then
-        error_exit "Template file not readable: $TEMPLATE_PATH"
+    if [[ ! -r "$NFTABLES_TEMPLATE" ]]; then
+        error_exit "Template file not readable: $NFTABLES_TEMPLATE"
     fi
     
-    log_debug "Template validated: $TEMPLATE_PATH"
+    log_debug "Template validated: $NFTABLES_TEMPLATE"
 }
 
 # Check if eth0 has IPv6 connectivity
@@ -275,7 +285,7 @@ generate_nftables_config() {
             -e "s|{{IPV6_NAT_RULE}}|$ipv6_nat_rule|g" \
             -e "s|{{IPV6_FORWARD_RULE}}|$ipv6_forward_rule|g" \
             -e "s|{{IPV6_INTRA_RULE}}|$ipv6_intra_rule|g" \
-            "$TEMPLATE_PATH" > "$temp_config"; then
+            "$NFTABLES_TEMPLATE" > "$temp_config"; then
         error_exit "Failed to process nftables template"
     fi
     
@@ -303,13 +313,16 @@ update_dnsmasq_ipv6() {
     if [ -n "$ipv6_prefix" ]; then
         log "Updating dnsmasq with IPv6 prefix: $ipv6_prefix"
         
-        # Create temporary config
-        cat > /etc/dnsmasq.d/ipv6-dynamic.conf << EOF
-# Dynamic IPv6 configuration for USB Serial Console
-dhcp-range=wlan0,${ipv6_prefix%/*}::100,${ipv6_prefix%/*}::200,ra-only,1h
-enable-ra
-ra-param=wlan0,60,1800
-EOF
+        # Extract prefix base (remove ::/<number> suffix)
+        local ipv6_prefix_base="${ipv6_prefix%::/*}"
+        
+        # Generate dynamic config from template
+        if ! sed -e "s|{{WIFI_INTERFACE}}|$WIFI_INTERFACE|g" \
+                -e "s|{{IPV6_PREFIX_BASE}}|$ipv6_prefix_base|g" \
+                "${TEMPLATE_DIR}/dnsmasq-ipv6-dynamic.conf" > /etc/dnsmasq.d/ipv6-dynamic.conf; then
+            log_error "Failed to generate dnsmasq IPv6 configuration"
+            return 1
+        fi
     else
         # Remove dynamic IPv6 config if no prefix
         rm -f /etc/dnsmasq.d/ipv6-dynamic.conf

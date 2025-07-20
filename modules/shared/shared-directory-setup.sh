@@ -4,7 +4,16 @@
 
 set -euo pipefail
 
-readonly SHARED_DIR="/srv/shared"
+# Load global configuration
+if [[ -f "../../config/global.conf" ]]; then
+    source "../../config/global.conf"
+else
+    # Fallback defaults
+    export SHARED_DIR="/srv/shared"
+    export WIFI_IPV4_GATEWAY="192.168.44.1"
+    export DEFAULT_SAMBA_USER="pi"
+    export DEFAULT_SAMBA_PASSWORD="raspberry"
+fi
 
 log() {
     echo "[$(date '+%H:%M:%S')] $*" >&2
@@ -89,42 +98,22 @@ setup_samba_permissions() {
 }
 
 show_access_info() {
-    local ip_addr="192.168.44.1"  # Static IP for the access point
+    echo ""
     
-    cat << EOF
-
-=== Unified File Sharing Setup Complete ===
-
-Shared Directory: $SHARED_DIR
-
-Access Methods:
-1. HTTP/Web Browser:
-   URL: http://$ip_addr/
-   Upload: http://$ip_addr/upload/
-
-2. TFTP:
-   Upload: tftp $ip_addr -c put filename
-   Download: tftp $ip_addr -c get filename
-
-3. SMB/CIFS:
-   Windows: \\\\$ip_addr\\shared
-   Linux: sudo mount -t cifs //$ip_addr/shared /mnt/point
-   macOS: smb://$ip_addr/shared
-
-Default Credentials:
-- SMB Username: pi
-- SMB Password: raspberry
-
-Directory Structure:
-$SHARED_DIR/
-├── uploads/     (file uploads)
-├── downloads/   (file downloads)
-├── firmware/    (device firmware)
-├── configs/     (configuration backups)
-├── logs/        (log files)
-└── README.txt   (access instructions)
-
-EOF
+    if [[ -f "templates/access-info.txt" ]]; then
+        sed -e "s|{{SHARED_DIR}}|${SHARED_DIR}|g" \
+            -e "s|{{WIFI_IPV4_GATEWAY}}|${WIFI_IPV4_GATEWAY}|g" \
+            -e "s|{{DEFAULT_SAMBA_USER}}|${DEFAULT_SAMBA_USER}|g" \
+            -e "s|{{DEFAULT_SAMBA_PASSWORD}}|${DEFAULT_SAMBA_PASSWORD}|g" \
+            "templates/access-info.txt"
+    else
+        log "Warning: Access info template not found"
+        echo "=== Unified File Sharing Setup Complete ==="
+        echo "Shared Directory: $SHARED_DIR"
+        echo "Access via: http://${WIFI_IPV4_GATEWAY}/"
+    fi
+    
+    echo ""
 }
 
 main() {

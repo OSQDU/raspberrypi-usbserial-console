@@ -11,10 +11,39 @@ readonly NC='\033[0m' # No Color
 # Project configuration
 readonly PROJECT_NAME="USB Serial Console"
 readonly PROJECT_VERSION="2.0"
-readonly CONFIG_DIR="/etc/usbserial"
-readonly SHARED_DIR="/srv/shared"
-readonly LOG_DIR="/var/log/usbserial"
-readonly SYSTEMD_DIR="/etc/systemd/system"
+
+# Load global configuration
+load_global_config() {
+    local config_file
+    local script_dir
+    
+    # Find the script directory relative to where this function is called
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
+    
+    # Look for config file in several locations
+    local config_paths=(
+        "${script_dir}/../config/global.conf"
+        "${script_dir}/../../config/global.conf"
+        "${script_dir}/../../../config/global.conf"
+        "/etc/usbserial/global.conf"
+        "/usr/local/share/usbserial/global.conf"
+    )
+    
+    for config_file in "${config_paths[@]}"; do
+        if [[ -f "$config_file" && -r "$config_file" ]]; then
+            # shellcheck source=/dev/null
+            source "$config_file"
+            log_debug "Loaded configuration from: $config_file"
+            return 0
+        fi
+    done
+    
+    log_warn "Global configuration file not found, using defaults"
+    return 1
+}
+
+# Auto-load configuration when this library is sourced
+load_global_config
 
 # Logging functions
 log_info() {
