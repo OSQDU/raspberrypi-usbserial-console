@@ -1,6 +1,80 @@
+# USB Serial Console - Physical Port Mapping
+# Creates predictable /dev/usbserial-X.Y device names based on physical USB port position
+# X = physical port (1-4), Y = interface number (0-3 for multi-port, omitted for single-port)
+
+SUBSYSTEM!="tty", GOTO="usbserial_end"
+ACTION!="add", GOTO="usbserial_end"
+
+# Only process USB serial devices
+SUBSYSTEMS=="usb-serial", GOTO="usbserial_process"
+GOTO="usbserial_end"
+
+LABEL="usbserial_process"
 IMPORT{builtin}="path_id"
 
-ENV{ID_PATH}=="platform-3f980000.usb-usb-0:1.2:1.0", SYMLINK+="ttyQDU0"
-ENV{ID_PATH}=="platform-3f980000.usb-usb-0:1.3:1.0", SYMLINK+="ttyQDU1"
-ENV{ID_PATH}=="platform-3f980000.usb-usb-0:1.4:1.0", SYMLINK+="ttyQDU2"
-ENV{ID_PATH}=="platform-3f980000.usb-usb-0:1.5:1.0", SYMLINK+="ttyQDU3"
+# Determine physical USB port from ID_PATH
+# Pi 3/3B/3B+ (BCM2837)
+ENV{ID_PATH}=="platform-3f980000.usb-usb-0:1.2:1.0", ENV{PHYSICAL_PORT}="1"
+ENV{ID_PATH}=="platform-3f980000.usb-usb-0:1.3:1.0", ENV{PHYSICAL_PORT}="2"
+ENV{ID_PATH}=="platform-3f980000.usb-usb-0:1.4:1.0", ENV{PHYSICAL_PORT}="3"
+ENV{ID_PATH}=="platform-3f980000.usb-usb-0:1.5:1.0", ENV{PHYSICAL_PORT}="4"
+
+# Pi 4/4B (BCM2711)
+ENV{ID_PATH}=="platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.1:1.0", ENV{PHYSICAL_PORT}="1"
+ENV{ID_PATH}=="platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.2:1.0", ENV{PHYSICAL_PORT}="2"
+ENV{ID_PATH}=="platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.3:1.0", ENV{PHYSICAL_PORT}="3"
+ENV{ID_PATH}=="platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.4:1.0", ENV{PHYSICAL_PORT}="4"
+
+# Pi 5 (BCM2712)
+ENV{ID_PATH}=="platform-1f00200000.usb-usb-0:1.1:1.0", ENV{PHYSICAL_PORT}="1"
+ENV{ID_PATH}=="platform-1f00200000.usb-usb-0:1.2:1.0", ENV{PHYSICAL_PORT}="2"
+ENV{ID_PATH}=="platform-1f00200000.usb-usb-0:1.3:1.0", ENV{PHYSICAL_PORT}="3"
+ENV{ID_PATH}=="platform-1f00200000.usb-usb-0:1.4:1.0", ENV{PHYSICAL_PORT}="4"
+
+# Pi Zero 2 W (single USB via adapter)
+ENV{ID_PATH}=="platform-20980000.usb-usb-0:1.1:1.0", ENV{PHYSICAL_PORT}="1"
+
+# Skip if physical port not detected
+ENV{PHYSICAL_PORT}=="", GOTO="usbserial_end"
+
+# Detect device type and interface number
+# Multi-port USB serial devices (FT4232H, FT2232H, etc.)
+ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6011", ENV{MULTIPORT}="1"  # FT4232H
+ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6010", ENV{MULTIPORT}="1"  # FT2232H
+
+# Single-port devices
+ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ENV{MULTIPORT}="0"  # FT232
+ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", ENV{MULTIPORT}="0"  # CH341
+ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", ENV{MULTIPORT}="0"  # PL2303
+ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ENV{MULTIPORT}="0"  # CP210x
+
+# Create device names based on port type
+ENV{MULTIPORT}=="1", GOTO="usbserial_multiport"
+ENV{MULTIPORT}=="0", GOTO="usbserial_singleport"
+GOTO="usbserial_end"
+
+LABEL="usbserial_multiport"
+# Multi-port: /dev/usbserial-X.Y (X=physical port, Y=interface)
+ATTR{bInterfaceNumber}=="00", SYMLINK+="usbserial-$env{PHYSICAL_PORT}.0"
+ATTR{bInterfaceNumber}=="01", SYMLINK+="usbserial-$env{PHYSICAL_PORT}.1"
+ATTR{bInterfaceNumber}=="02", SYMLINK+="usbserial-$env{PHYSICAL_PORT}.2"
+ATTR{bInterfaceNumber}=="03", SYMLINK+="usbserial-$env{PHYSICAL_PORT}.3"
+GOTO="usbserial_common"
+
+LABEL="usbserial_singleport"
+# Single-port: /dev/usbserial-X (X=physical port only)
+SYMLINK+="usbserial-$env{PHYSICAL_PORT}"
+GOTO="usbserial_common"
+
+LABEL="usbserial_common"
+# Set permissions and attributes
+GROUP="dialout", MODE="0664"
+
+# Add metadata for applications
+ENV{ID_USB_SERIAL_PORT}="$env{PHYSICAL_PORT}"
+ENV{ID_USB_SERIAL_MULTIPORT}="$env{MULTIPORT}"
+
+# Tag for systemd
+TAG+="systemd", TAG+="usbserial"
+
+LABEL="usbserial_end"
