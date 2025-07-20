@@ -1,10 +1,10 @@
 #!/bin/bash
 # Setup unified shared directory for HTTP, TFTP, and SMB file sharing
+# Designed for fresh Raspberry Pi OS installations
 
 set -euo pipefail
 
 readonly SHARED_DIR="/srv/shared"
-readonly BACKUP_DIR="/opt/usbserial-backup-$(date +%Y%m%d-%H%M%S)"
 
 log() {
     echo "[$(date '+%H:%M:%S')] $*" >&2
@@ -14,14 +14,14 @@ create_shared_directory() {
     log "Creating unified shared directory: $SHARED_DIR"
     
     # Create directory structure
-    sudo mkdir -p "$SHARED_DIR"/{uploads,downloads,firmware,configs,logs}
+    mkdir -p "$SHARED_DIR"/{uploads,downloads,firmware,configs,logs}
     
     # Set appropriate ownership and permissions
-    sudo chown -R pi:pi "$SHARED_DIR"
-    sudo chmod -R 755 "$SHARED_DIR"
+    chown -R pi:pi "$SHARED_DIR"
+    chmod -R 755 "$SHARED_DIR"
     
-    # Make it writable for uploads
-    sudo chmod 775 "$SHARED_DIR"/uploads
+    # Make uploads directory writable for web uploads
+    chmod 775 "$SHARED_DIR"/uploads
     
     # Create welcome file
     cat > "$SHARED_DIR/README.txt" << 'EOF'
@@ -52,72 +52,44 @@ EOF
     log "Shared directory created successfully"
 }
 
-migrate_existing_files() {
-    log "Migrating files from existing directories..."
-    
-    # Create backup directory
-    sudo mkdir -p "$BACKUP_DIR"
-    
-    # Migrate from old TFTP directory
-    if [[ -d "/srv/tftp" ]] && [[ "$(ls -A /srv/tftp 2>/dev/null)" ]]; then
-        log "Backing up and migrating /srv/tftp..."
-        sudo cp -r /srv/tftp "$BACKUP_DIR/"
-        sudo cp -r /srv/tftp/* "$SHARED_DIR/firmware/" 2>/dev/null || true
-    fi
-    
-    # Migrate from old files directory
-    if [[ -d "/srv/files" ]] && [[ "$(ls -A /srv/files 2>/dev/null)" ]]; then
-        log "Backing up and migrating /srv/files..."
-        sudo cp -r /srv/files "$BACKUP_DIR/"
-        sudo cp -r /srv/files/* "$SHARED_DIR/downloads/" 2>/dev/null || true
-    fi
-    
-    # Fix permissions after migration
-    sudo chown -R pi:pi "$SHARED_DIR"
-    
-    log "Migration completed. Backup saved to: $BACKUP_DIR"
-}
-
-setup_nginx_upload() {
-    log "Setting up nginx upload directories..."
+setup_nginx_permissions() {
+    log "Setting up nginx upload permissions..."
     
     # Create temporary upload directory for nginx
-    sudo mkdir -p /tmp/nginx_upload
-    sudo chown www-data:www-data /tmp/nginx_upload
-    sudo chmod 755 /tmp/nginx_upload
+    mkdir -p /tmp/nginx_upload
+    chown www-data:www-data /tmp/nginx_upload
+    chmod 755 /tmp/nginx_upload
     
     # Ensure www-data can write to uploads directory
-    sudo chgrp www-data "$SHARED_DIR/uploads"
-    sudo chmod g+w "$SHARED_DIR/uploads"
+    chgrp www-data "$SHARED_DIR/uploads"
+    chmod g+w "$SHARED_DIR/uploads"
 }
 
 setup_tftp_permissions() {
     log "Setting up TFTP permissions..."
     
-    # TFTP user needs read/write access
-    sudo usermod -a -G pi tftp 2>/dev/null || true
+    # Add tftp user to pi group for shared access
+    usermod -a -G pi tftp 2>/dev/null || true
     
     # Make sure TFTP can write to shared directory
-    sudo chmod g+w "$SHARED_DIR"
-    sudo setfacl -m u:tftp:rwx "$SHARED_DIR" 2>/dev/null || true
+    chmod g+w "$SHARED_DIR"
+    
+    # Set ACL if available for more granular control
+    setfacl -m u:tftp:rwx "$SHARED_DIR" 2>/dev/null || true
 }
 
 setup_samba_permissions() {
     log "Setting up Samba permissions..."
     
-    # Add pi user to samba if not already added
-    if ! sudo pdbedit -L 2>/dev/null | grep -q "^pi:"; then
-        log "Adding pi user to Samba..."
-        echo -e "raspberry\nraspberry" | sudo smbpasswd -a pi -s
-    fi
+    # Add pi user to samba with default password
+    echo -e "raspberry\nraspberry" | smbpasswd -a pi -s
     
     # Ensure samba can access the directory
-    sudo chmod o+rx "$SHARED_DIR"
+    chmod o+rx "$SHARED_DIR"
 }
 
 show_access_info() {
-    local ip_addr
-    ip_addr=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}' || echo "192.168.44.1")
+    local ip_addr="192.168.44.1"  # Static IP for the access point
     
     cat << EOF
 
@@ -150,23 +122,22 @@ $SHARED_DIR/
 ├── firmware/    (device firmware)
 ├── configs/     (configuration backups)
 ├── logs/        (log files)
-└── README.txt   (this information)
+└── README.txt   (access instructions)
 
 EOF
 }
 
 main() {
     if [[ $EUID -ne 0 ]]; then
-        log "This script requires root privileges"
+        log "ERROR: This script must be run as root"
         log "Please run: sudo $0"
         exit 1
     fi
     
-    log "Setting up unified file sharing directory..."
+    log "Setting up unified file sharing directory on fresh Pi OS..."
     
     create_shared_directory
-    migrate_existing_files
-    setup_nginx_upload
+    setup_nginx_permissions
     setup_tftp_permissions
     setup_samba_permissions
     
