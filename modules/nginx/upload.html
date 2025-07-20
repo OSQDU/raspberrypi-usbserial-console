@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USB Serial Console - File Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .nav {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .nav a {
+            color: #007cba;
+            text-decoration: none;
+            margin-right: 20px;
+        }
+        
+        .nav a:hover {
+            text-decoration: underline;
+        }
+        
+        .upload-form {
+            border: 2px dashed #ddd;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .upload-form.dragover {
+            border-color: #007cba;
+            background: #f0f8ff;
+        }
+        
+        input[type="file"] {
+            margin: 20px 0;
+        }
+        
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #005a87;
+        }
+        
+        .file-list {
+            margin-top: 20px;
+        }
+        
+        .file-item {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>USB Serial Console</h1>
+        <p>File Upload Interface</p>
+        
+        <div class="nav">
+            <a href="/">Browse Files</a>
+            <a href="/upload.html">Upload Files</a>
+        </div>
+        
+        <div id="message" class="message"></div>
+        
+        <div class="upload-form" id="uploadArea">
+            <p>Drag and drop files here, or click to select files</p>
+            <input type="file" id="fileInput" multiple>
+            <br>
+            <button onclick="document.getElementById('fileInput').click()">Choose Files</button>
+        </div>
+        
+        <div id="fileList" class="file-list"></div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const message = document.getElementById('message');
+        let selectedFiles = [];
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            selectedFiles = Array.from(files);
+            displayFiles();
+        }
+
+        function displayFiles() {
+            fileList.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <span>${file.name} (${formatFileSize(file.size)})</span>
+                    <div>
+                        <button onclick="uploadFile(${index})">Upload</button>
+                        <button onclick="removeFile(${index})">Remove</button>
+                    </div>
+                `;
+                fileList.appendChild(item);
+            });
+            
+            if (selectedFiles.length > 1) {
+                const uploadAllBtn = document.createElement('button');
+                uploadAllBtn.textContent = 'Upload All';
+                uploadAllBtn.onclick = uploadAll;
+                fileList.appendChild(uploadAllBtn);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i)) + ' ' + sizes[i];
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            displayFiles();
+        }
+
+        async function uploadFile(index) {
+            const file = selectedFiles[index];
+            
+            try {
+                const response = await fetch('/upload/' + file.name, {
+                    method: 'PUT',
+                    body: file
+                });
+                
+                if (response.ok) {
+                    showMessage('Uploaded: ' + file.name, 'success');
+                    removeFile(index);
+                } else {
+                    throw new Error('Upload failed');
+                }
+                
+            } catch (error) {
+                showMessage('Failed to upload: ' + file.name, 'error');
+            }
+        }
+
+        function uploadAll() {
+            selectedFiles.forEach((file, index) => {
+                setTimeout(() => uploadFile(index), index * 500);
+            });
+        }
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = 'message ' + type;
+            message.style.display = 'block';
+            
+            setTimeout(() => {
+                message.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
