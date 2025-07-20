@@ -1,6 +1,13 @@
 # /etc/default/tftpd-hpa
+# TFTP server configuration - unified file sharing
 
 TFTP_USERNAME="tftp"
-TFTP_DIRECTORY="/srv/tftp"
+TFTP_DIRECTORY="/srv/shared"
 TFTP_ADDRESS="0.0.0.0:69"
-TFTP_OPTIONS="-c --secure"
+
+# Options:
+# -c: Allow creation of new files
+# -s: Secure mode (change root to TFTP_DIRECTORY)
+# -v: Verbose logging
+# -4: IPv4 only for simplicity
+TFTP_OPTIONS="-c -s -v"
