@@ -1,0 +1,15 @@
+[Unit]
+Description=Setup NAT routing for USB Serial Console
+After=network-online.target hostapd.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/configure-nat configure
+ExecReload=/usr/local/bin/configure-nat configure
+ExecStop=/usr/local/bin/configure-nat cleanup
+TimeoutStartSec=60
+
+[Install]
+WantedBy=multi-user.target
