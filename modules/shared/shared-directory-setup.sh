@@ -21,17 +21,17 @@ log() {
 
 create_shared_directory() {
     log "Creating unified shared directory: $SHARED_DIR"
-    
+
     # Create directory structure
     mkdir -p "$SHARED_DIR"/{uploads,downloads,firmware,configs,logs}
-    
+
     # Set appropriate ownership and permissions
     chown -R pi:pi "$SHARED_DIR"
     chmod -R 755 "$SHARED_DIR"
-    
+
     # Make uploads directory writable for web uploads
     chmod 775 "$SHARED_DIR"/uploads
-    
+
     # Create welcome file from template
     if [[ -f "templates/README.txt" ]]; then
         sed -e "s|{{WIFI_IPV4_GATEWAY}}|${WIFI_IPV4_GATEWAY}|g" \
@@ -42,18 +42,18 @@ create_shared_directory() {
         echo "USB Serial Console - Shared Directory" > "$SHARED_DIR/README.txt"
         echo "Generated: $(date)" >> "$SHARED_DIR/README.txt"
     fi
-    
+
     log "Shared directory created successfully"
 }
 
 setup_nginx_permissions() {
     log "Setting up nginx upload permissions..."
-    
+
     # Create temporary upload directory for nginx
     mkdir -p /tmp/nginx_upload
     chown www-data:www-data /tmp/nginx_upload
     chmod 755 /tmp/nginx_upload
-    
+
     # Ensure www-data can write to uploads directory
     chgrp www-data "$SHARED_DIR/uploads"
     chmod g+w "$SHARED_DIR/uploads"
@@ -61,30 +61,30 @@ setup_nginx_permissions() {
 
 setup_tftp_permissions() {
     log "Setting up TFTP permissions..."
-    
+
     # Add tftp user to pi group for shared access
     usermod -a -G pi tftp 2>/dev/null || true
-    
+
     # Make sure TFTP can write to shared directory
     chmod g+w "$SHARED_DIR"
-    
+
     # Set ACL if available for more granular control
     setfacl -m u:tftp:rwx "$SHARED_DIR" 2>/dev/null || true
 }
 
 setup_samba_permissions() {
     log "Setting up Samba permissions..."
-    
+
     # Add pi user to samba with default password
     echo -e "raspberry\nraspberry" | smbpasswd -a pi -s
-    
+
     # Ensure samba can access the directory
     chmod o+rx "$SHARED_DIR"
 }
 
 show_access_info() {
     echo ""
-    
+
     if [[ -f "templates/access-info.txt" ]]; then
         sed -e "s|{{SHARED_DIR}}|${SHARED_DIR}|g" \
             -e "s|{{WIFI_IPV4_GATEWAY}}|${WIFI_IPV4_GATEWAY}|g" \
@@ -97,7 +97,7 @@ show_access_info() {
         echo "Shared Directory: $SHARED_DIR"
         echo "Access via: http://${WIFI_IPV4_GATEWAY}/"
     fi
-    
+
     echo ""
 }
 
@@ -107,16 +107,16 @@ main() {
         log "Please run: sudo $0"
         exit 1
     fi
-    
+
     log "Setting up unified file sharing directory on fresh Pi OS..."
-    
+
     create_shared_directory
     setup_nginx_permissions
     setup_tftp_permissions
     setup_samba_permissions
-    
+
     show_access_info
-    
+
     log "Setup completed successfully!"
 }
 

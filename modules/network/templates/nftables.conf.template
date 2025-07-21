@@ -9,13 +9,13 @@ table inet nat_router {
     chain prerouting {
         type nat hook prerouting priority dstnat; policy accept;
     }
-    
+
     chain postrouting {
         type nat hook postrouting priority srcnat; policy accept;
-        
+
         # IPv4 NAT for WLAN -> ETH0
         ip saddr {{IPV4_NETWORK}} oifname "{{ETH_INTERFACE}}" masquerade
-        
+
         # IPv6 NAT (if needed and available)
         # Most IPv6 setups don't need NAT, but some residential connections do
         {{IPV6_NAT_RULE}}
@@ -25,22 +25,22 @@ table inet nat_router {
 table inet filter_router {
     chain forward {
         type filter hook forward priority filter; policy drop;
-        
+
         # Allow established and related connections
         ct state established,related accept
-        
+
         # Allow WLAN -> ETH0 forwarding (IPv4)
         iifname "{{WIFI_INTERFACE}}" oifname "{{ETH_INTERFACE}}" ip saddr {{IPV4_NETWORK}} accept
-        
+
         # Allow WLAN -> ETH0 forwarding (IPv6)
         {{IPV6_FORWARD_RULE}}
-        
+
         # Allow intra-WLAN communication (IPv4)
         iifname "{{WIFI_INTERFACE}}" oifname "{{WIFI_INTERFACE}}" ip saddr {{IPV4_NETWORK}} accept
-        
+
         # Allow intra-WLAN communication (IPv6)
         {{IPV6_INTRA_RULE}}
-        
+
         # Log dropped packets for debugging (uncomment if needed)
         # log prefix "nft-drop: " drop
     }

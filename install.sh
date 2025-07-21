@@ -14,7 +14,7 @@ source "lib/modules.sh"
 # Default modules for full installation
 readonly DEFAULT_MODULES=(
     "system"
-    "network" 
+    "network"
     "shared"
     "udev"
     "hostapd"
@@ -71,7 +71,7 @@ EOF
 
 validate_environment() {
     log_info "Validating environment..."
-    
+
     # Check if running on Raspberry Pi
     if [[ ! -f "/proc/device-tree/model" ]] || ! grep -q "Raspberry Pi" /proc/device-tree/model 2>/dev/null; then
         log_warn "This script is designed for Raspberry Pi hardware"
@@ -79,7 +79,7 @@ validate_environment() {
         echo
         [[ $REPLY =~ ^[Yy]$ ]] || exit 1
     fi
-    
+
     # Check operating system
     if [[ ! -f "/etc/os-release" ]] || ! grep -q -E "Raspbian|Raspberry Pi OS" /etc/os-release; then
         log_warn "This script is designed for Raspberry Pi OS"
@@ -87,12 +87,12 @@ validate_environment() {
         echo
         [[ $REPLY =~ ^[Yy]$ ]] || exit 1
     fi
-    
+
     # Check WiFi capability
     if [[ -z "$(get_wifi_interface)" ]]; then
         error_exit "No WiFi interface detected. This project requires WiFi capability."
     fi
-    
+
     log_success "Environment validation passed"
 }
 
@@ -105,7 +105,7 @@ main() {
     local dry_run=false
     local module_to_uninstall=""
     local module_to_validate=""
-    
+
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -159,24 +159,24 @@ main() {
                 ;;
         esac
     done
-    
+
     # Check for root privileges
     require_root
-    
+
     # Show banner
     show_banner
-    
+
     # Handle special actions
     if [[ -n "$module_to_uninstall" ]]; then
         uninstall_module "$module_to_uninstall"
         exit 0
     fi
-    
+
     if [[ -n "$module_to_validate" ]]; then
         validate_module "$module_to_validate"
         exit 0
     fi
-    
+
     if [[ "$show_status" == "true" ]]; then
         log_info "Module installation status:"
         for module in "${DEFAULT_MODULES[@]}"; do
@@ -185,24 +185,24 @@ main() {
         done
         exit 0
     fi
-    
+
     # Validate environment
     validate_environment
-    
+
     # Determine modules to install
     if [[ "$install_all" == "true" ]]; then
         modules_to_install=("${DEFAULT_MODULES[@]}")
     fi
-    
+
     if [[ ${#modules_to_install[@]} -eq 0 ]]; then
         error_exit "No modules specified. Use --help for usage information."
     fi
-    
+
     # Show what will be installed
     log_info "Pi Model: $(detect_pi_model)"
     log_info "WiFi Interface: $(get_wifi_interface)"
     log_info "Installation mode: ${force:+force }install"
-    
+
     if [[ "$dry_run" == "true" ]]; then
         log_info "DRY RUN - Would install modules: ${modules_to_install[*]}"
         local -a resolved
@@ -210,12 +210,12 @@ main() {
         log_info "DRY RUN - Resolved installation order: ${resolved[*]}"
         exit 0
     fi
-    
+
     # Install modules
     if [[ "$configure_only" != "true" ]]; then
         install_modules "${modules_to_install[@]}"
     fi
-    
+
     # Configure modules
     if [[ "$configure_only" == "true" ]] || [[ "$force" == "true" ]]; then
         log_info "Configuring modules..."
@@ -223,7 +223,7 @@ main() {
             configure_module "$module"
         done
     fi
-    
+
     # Final summary
     log_success "Installation completed successfully!"
     echo

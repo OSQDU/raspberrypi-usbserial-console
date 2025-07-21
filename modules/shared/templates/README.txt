@@ -9,7 +9,7 @@ SMB/CIFS:  \\{{WIFI_IPV4_GATEWAY}}\shared
 
 Subdirectories:
 - uploads/   - Upload files here
-- downloads/ - Download files from here  
+- downloads/ - Download files from here
 - firmware/  - Device firmware files
 - configs/   - Configuration backups
 - logs/      - Log files

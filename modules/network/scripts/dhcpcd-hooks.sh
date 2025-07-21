@@ -28,14 +28,14 @@ validate_config_script() {
 acquire_lock() {
     local timeout=30
     local count=0
-    
+
     while [[ $count -lt $timeout ]]; do
         if (set -C; echo $$ > "$LOCKFILE") 2>/dev/null; then
             # Set trap to cleanup lock on exit
             trap 'rm -f "$LOCKFILE"' EXIT
             return 0
         fi
-        
+
         # Check if existing lock is stale
         if [[ -f "$LOCKFILE" ]]; then
             local lock_pid
@@ -46,11 +46,11 @@ acquire_lock() {
                 continue
             fi
         fi
-        
+
         sleep 1
         ((count++))
     done
-    
+
     log_hook "err" "Failed to acquire lock after ${timeout}s"
     return 1
 }
@@ -59,7 +59,7 @@ acquire_lock() {
 limit_background_jobs() {
     local job_count
     job_count=$(pgrep -f "configure-nat dhcpv6-hook" | wc -l)
-    
+
     if [[ $job_count -ge $MAX_BACKGROUND_JOBS ]]; then
         log_hook "warning" "Too many background jobs ($job_count), skipping this event"
         return 1
@@ -71,25 +71,25 @@ limit_background_jobs() {
 execute_config() {
     local reason="$1"
     local delay="${2:-0}"
-    
+
     # Validate environment
     validate_config_script || return 1
-    
+
     # Acquire lock to prevent concurrent execution
     if ! acquire_lock; then
         return 1
     fi
-    
+
     # Limit background jobs
     if ! limit_background_jobs; then
         return 1
     fi
-    
+
     # Add delay if requested
     if [[ $delay -gt 0 ]]; then
         sleep "$delay"
     fi
-    
+
     # Execute configuration script
     log_hook "info" "Executing NAT reconfiguration due to $reason"
     if "$CONFIG_SCRIPT" dhcpv6-hook; then
@@ -107,17 +107,17 @@ main() {
         log_hook "err" "Interface variable not set"
         return 1
     fi
-    
+
     if [[ -z "${reason:-}" ]]; then
         log_hook "err" "Reason variable not set"
         return 1
     fi
-    
+
     # Only handle eth0 events
     if [[ "$interface" != "eth0" ]]; then
         return 0
     fi
-    
+
     case "$reason" in
         BOUND6|REBIND6|REBOOT6|RENEW6)
             # DHCPv6-PD event on eth0, reconfigure everything

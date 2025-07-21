@@ -16,10 +16,10 @@ readonly PROJECT_VERSION="2.0"
 load_global_config() {
     local config_file
     local script_dir
-    
+
     # Find the script directory relative to where this function is called
     script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
-    
+
     # Look for config file in several locations
     local config_paths=(
         "${script_dir}/../config/global.conf"
@@ -28,7 +28,7 @@ load_global_config() {
         "/etc/usbserial/global.conf"
         "/usr/local/share/usbserial/global.conf"
     )
-    
+
     for config_file in "${config_paths[@]}"; do
         if [[ -f "$config_file" && -r "$config_file" ]]; then
             # shellcheck source=/dev/null
@@ -37,7 +37,7 @@ load_global_config() {
             return 0
         fi
     done
-    
+
     log_warn "Global configuration file not found, using defaults"
     return 1
 }
@@ -88,7 +88,7 @@ require_user() {
 backup_file() {
     local file="$1"
     local backup_dir="${2:-$CONFIG_DIR/backups}"
-    
+
     if [[ -f "$file" ]]; then
         mkdir -p "$backup_dir"
         local timestamp=$(date +%Y%m%d-%H%M%S)
@@ -103,13 +103,13 @@ replace_file() {
     local source="$1"
     local target="$2"
     local backup="${3:-true}"
-    
+
     [[ -f "$source" ]] || error_exit "Source file does not exist: $source"
-    
+
     if [[ "$backup" == "true" ]]; then
         backup_file "$target"
     fi
-    
+
     cp "$source" "$target"
     log_info "Replaced $target with $source"
 }
@@ -119,12 +119,12 @@ process_template() {
     local template="$1"
     local output="$2"
     shift 2
-    
+
     [[ -f "$template" ]] || error_exit "Template file does not exist: $template"
-    
+
     local content
     content=$(cat "$template")
-    
+
     # Replace variables in format {{VARIABLE}}
     while [[ $# -gt 0 ]]; do
         local var="$1"
@@ -132,7 +132,7 @@ process_template() {
         content=${content//\{\{$var\}\}/$value}
         shift 2
     done
-    
+
     echo "$content" > "$output"
     log_info "Generated $output from template $template"
 }
@@ -141,7 +141,7 @@ process_template() {
 manage_service() {
     local action="$1"
     local service="$2"
-    
+
     case "$action" in
         enable)
             systemctl enable "$service"
@@ -179,7 +179,7 @@ manage_service() {
 # Package management
 install_package() {
     local package="$1"
-    
+
     if ! dpkg -l "$package" >/dev/null 2>&1; then
         log_info "Installing package: $package"
         apt-get update -qq
@@ -192,7 +192,7 @@ install_package() {
 
 remove_package() {
     local package="$1"
-    
+
     if dpkg -l "$package" >/dev/null 2>&1; then
         log_info "Removing package: $package"
         apt-get remove -y "$package"
@@ -218,13 +218,13 @@ get_ethernet_interface() {
 get_mac_address() {
     local interface="$1"
     local mac_addr
-    
+
     if [[ -f "/sys/class/net/$interface/address" ]]; then
         mac_addr=$(cat "/sys/class/net/$interface/address")
     else
         mac_addr=$(ip link show "$interface" 2>/dev/null | awk '/link\/ether/ {print $2}')
     fi
-    
+
     echo "$mac_addr"
 }
 
@@ -242,7 +242,7 @@ detect_pi_model() {
 detect_pi_version() {
     local model
     model=$(detect_pi_model)
-    
+
     case "$model" in
         *"Pi 5"*) echo "5" ;;
         *"Pi 4"*) echo "4" ;;
@@ -257,7 +257,7 @@ detect_pi_version() {
 validate_ip() {
     local ip="$1"
     local regex='^([0-9]{1,3}\.){3}[0-9]{1,3}$'
-    
+
     if [[ $ip =~ $regex ]]; then
         local IFS='.'
         local -a octets=($ip)
@@ -278,24 +278,24 @@ show_progress() {
     local current="$1"
     local total="$2"
     local description="$3"
-    
+
     local percentage=$((current * 100 / total))
     local filled=$((percentage / 2))
     local empty=$((50 - filled))
-    
+
     printf "\r${BLUE}[%s%s]${NC} %d%% %s" \
         "$(printf "%*s" $filled | tr ' ' '█')" \
         "$(printf "%*s" $empty | tr ' ' '░')" \
         "$percentage" \
         "$description"
-    
+
     [[ $current -eq $total ]] && echo
 }
 
 # Configuration helpers
 create_config_dirs() {
     local dirs=("$CONFIG_DIR" "$LOG_DIR" "$SHARED_DIR")
-    
+
     for dir in "${dirs[@]}"; do
         mkdir -p "$dir"
         log_debug "Created directory: $dir"
