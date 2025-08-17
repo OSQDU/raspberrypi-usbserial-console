@@ -51,6 +51,7 @@ Options:
     -s, --status            Show module status
     -c, --configure         Configure modules after installation
     -u, --uninstall MODULE  Uninstall specific module
+    --uninstall-all         Uninstall all modules
     --validate MODULE       Validate module installation
     --dry-run              Show what would be done without executing
 
@@ -104,6 +105,7 @@ main() {
     local dry_run=false
     local module_to_uninstall=""
     local module_to_validate=""
+    local uninstall_all=false
 
     # Parse command line arguments
     while [[ $# -gt 0 ]]; do
@@ -140,6 +142,10 @@ main() {
                 module_to_uninstall="$2"
                 shift 2
                 ;;
+            --uninstall-all)
+                uninstall_all=true
+                shift
+                ;;
             --validate)
                 module_to_validate="$2"
                 shift 2
@@ -168,6 +174,11 @@ main() {
     # Handle special actions
     if [[ -n "${module_to_uninstall}" ]]; then
         uninstall_module "${module_to_uninstall}"
+        exit 0
+    fi
+
+    if [[ "${uninstall_all}" == "true" ]]; then
+        uninstall_all_modules
         exit 0
     fi
 

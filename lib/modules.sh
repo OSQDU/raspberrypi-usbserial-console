@@ -316,7 +316,34 @@ configure_module() {
     fi
 }
 
+# Uninstall all modules in reverse dependency order
+uninstall_all_modules() {
+    local -a all_modules=("${DEFAULT_MODULES[@]}")
+    local -a uninstall_order=()
+    
+    log_info "Preparing to uninstall all modules..."
+    
+    # Reverse the default module order for uninstall
+    for ((i=${#all_modules[@]}-1; i>=0; i--)); do
+        uninstall_order+=("${all_modules[i]}")
+    done
+    
+    log_info "Uninstall order: ${uninstall_order[*]}"
+    
+    # Uninstall modules in reverse order
+    for module in "${uninstall_order[@]}"; do
+        if is_module_installed "${module}"; then
+            log_info "Uninstalling module: ${module}"
+            uninstall_module "${module}"
+        else
+            log_info "Module not installed, skipping: ${module}"
+        fi
+    done
+    
+    log_success "All modules uninstalled successfully"
+}
+
 # Export functions
 export -f list_modules module_exists is_module_installed get_dependencies
 export -f resolve_dependencies install_module uninstall_module install_modules
-export -f validate_module show_module_status configure_module
+export -f uninstall_all_modules validate_module show_module_status configure_module
