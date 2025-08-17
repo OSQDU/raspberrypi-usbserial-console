@@ -5,7 +5,7 @@ set -euo pipefail
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+cd "${SCRIPT_DIR}"
 
 # Source libraries
 # source "lib/common.sh", this will be sourced by lib/modules.sh
@@ -77,7 +77,7 @@ validate_environment() {
         log_warn "This script is designed for Raspberry Pi hardware"
         read -p "Continue anyway? [y/N] " -n 1 -r
         echo
-        [[ $REPLY =~ ^[Yy]$ ]] || exit 1
+        [[ ${REPLY} =~ ^[Yy]$ ]] || exit 1
     fi
 
     # Check operating system
@@ -85,7 +85,7 @@ validate_environment() {
         log_warn "This script is designed for Raspberry Pi OS"
         read -p "Continue anyway? [y/N] " -n 1 -r
         echo
-        [[ $REPLY =~ ^[Yy]$ ]] || exit 1
+        [[ ${REPLY} =~ ^[Yy]$ ]] || exit 1
     fi
 
     # Check WiFi capability
@@ -167,20 +167,20 @@ main() {
     show_banner
 
     # Handle special actions
-    if [[ -n "$module_to_uninstall" ]]; then
-        uninstall_module "$module_to_uninstall"
+    if [[ -n "${module_to_uninstall}" ]]; then
+        uninstall_module "${module_to_uninstall}"
         exit 0
     fi
 
-    if [[ -n "$module_to_validate" ]]; then
-        validate_module "$module_to_validate"
+    if [[ -n "${module_to_validate}" ]]; then
+        validate_module "${module_to_validate}"
         exit 0
     fi
 
-    if [[ "$show_status" == "true" ]]; then
+    if [[ "${show_status}" == "true" ]]; then
         log_info "Module installation status:"
         for module in "${DEFAULT_MODULES[@]}"; do
-            show_module_status "$module"
+            show_module_status "${module}"
             echo
         done
         exit 0
@@ -190,7 +190,7 @@ main() {
     validate_environment
 
     # Determine modules to install
-    if [[ "$install_all" == "true" ]]; then
+    if [[ "${install_all}" == "true" ]]; then
         modules_to_install=("${DEFAULT_MODULES[@]}")
     fi
 
@@ -203,7 +203,7 @@ main() {
     log_info "WiFi Interface: $(get_wifi_interface)"
     log_info "Installation mode: ${force:+force }install"
 
-    if [[ "$dry_run" == "true" ]]; then
+    if [[ "${dry_run}" == "true" ]]; then
         log_info "DRY RUN - Would install modules: ${modules_to_install[*]}"
         local -a resolved
         read -ra resolved <<< "$(resolve_dependencies "${modules_to_install[@]}")"
@@ -212,15 +212,15 @@ main() {
     fi
 
     # Install modules
-    if [[ "$configure_only" != "true" ]]; then
+    if [[ "${configure_only}" != "true" ]]; then
         install_modules "${modules_to_install[@]}"
     fi
 
     # Configure modules
-    if [[ "$configure_only" == "true" ]] || [[ "$force" == "true" ]]; then
+    if [[ "${configure_only}" == "true" ]] || [[ "${force}" == "true" ]]; then
         log_info "Configuring modules..."
         for module in "${modules_to_install[@]}"; do
-            configure_module "$module"
+            configure_module "${module}"
         done
     fi
 
@@ -233,7 +233,7 @@ main() {
     log_info "3. Access web interface: http://192.168.44.1/"
     log_info "4. Connect USB serial devices and access via /dev/usbserial-X[.Y]"
     echo
-    log_info "For troubleshooting, check logs in: $LOG_DIR"
+    log_info "For troubleshooting, check logs in: ${LOG_DIR}"
 }
 
 main "$@"

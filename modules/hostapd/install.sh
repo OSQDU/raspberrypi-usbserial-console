@@ -15,9 +15,9 @@ source "../../lib/common.sh"
 hostapd_error_exit() {
     local msg="$1"
     local code="${2:-1}"
-    log_error "Hostapd module installation failed: $msg"
+    log_error "Hostapd module installation failed: ${msg}"
     cleanup_on_error
-    exit "$code"
+    exit "${code}"
 }
 
 # Cleanup function for failed installations
@@ -41,12 +41,12 @@ validate_module_files() {
     )
 
     for file in "${required_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            hostapd_error_exit "Required module file not found: $file"
+        if [[ ! -f "${file}" ]]; then
+            hostapd_error_exit "Required module file not found: ${file}"
         fi
 
-        if [[ ! -r "$file" ]]; then
-            hostapd_error_exit "Required module file not readable: $file"
+        if [[ ! -r "${file}" ]]; then
+            hostapd_error_exit "Required module file not readable: ${file}"
         fi
     done
 
@@ -87,14 +87,14 @@ deploy_hostapd_config() {
         return 1
     fi
 
-    if [[ -z "$wifi_interface" ]]; then
+    if [[ -z "${wifi_interface}" ]]; then
         log_error "WiFi interface is empty"
         return 1
     fi
 
     # Validate WiFi interface exists
-    if ! ip link show "$wifi_interface" >/dev/null 2>&1; then
-        log_error "WiFi interface $wifi_interface not found"
+    if ! ip link show "${wifi_interface}" >/dev/null 2>&1; then
+        log_error "WiFi interface ${wifi_interface} not found"
         return 1
     fi
 
@@ -102,7 +102,7 @@ deploy_hostapd_config() {
     if ! process_template \
         "hostapd.conf.template" \
         "/etc/hostapd/hostapd.conf" \
-        "WIFI_INTERFACE" "$wifi_interface" \
+        "WIFI_INTERFACE" "${wifi_interface}" \
         "COUNTRY_CODE" "${WIFI_COUNTRY_CODE}"; then
         log_error "Failed to process hostapd template"
         return 1
@@ -136,34 +136,34 @@ generate_wpa_psk() {
         return 1
     fi
 
-    if [[ -z "$wifi_interface" ]]; then
+    if [[ -z "${wifi_interface}" ]]; then
         log_error "WiFi interface is empty"
         return 1
     fi
 
     local mac_addr
-    if ! mac_addr=$(get_mac_address "$wifi_interface"); then
-        log_error "Failed to get MAC address for $wifi_interface"
+    if ! mac_addr=$(get_mac_address "${wifi_interface}"); then
+        log_error "Failed to get MAC address for ${wifi_interface}"
         return 1
     fi
 
-    if [[ -z "$mac_addr" ]]; then
-        log_error "Could not determine MAC address for $wifi_interface"
+    if [[ -z "${mac_addr}" ]]; then
+        log_error "Could not determine MAC address for ${wifi_interface}"
         return 1
     fi
 
     # Validate MAC address format
-    if ! [[ "$mac_addr" =~ ^[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}$ ]]; then
-        log_error "Invalid MAC address format: $mac_addr"
+    if ! [[ "${mac_addr}" =~ ^[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}$ ]]; then
+        log_error "Invalid MAC address format: ${mac_addr}"
         return 1
     fi
 
     # Clean MAC address (remove colons, convert to uppercase)
     local clean_mac
-    clean_mac=$(echo "$mac_addr" | tr -d ':' | tr 'a-f' 'A-F')
+    clean_mac=$(echo "${mac_addr}" | tr -d ':' | tr 'a-f' 'A-F')
 
     if [[ ${#clean_mac} -ne 12 ]]; then
-        log_error "Invalid cleaned MAC address length: $clean_mac"
+        log_error "Invalid cleaned MAC address length: ${clean_mac}"
         return 1
     fi
 
@@ -174,7 +174,7 @@ generate_wpa_psk() {
     fi
 
     # Create PSK file
-    if ! echo "00:00:00:00:00:00 $clean_mac" > /etc/hostapd/hostapd.wpa_psk; then
+    if ! echo "00:00:00:00:00:00 ${clean_mac}" > /etc/hostapd/hostapd.wpa_psk; then
         log_error "Failed to create WPA PSK file"
         return 1
     fi
@@ -186,7 +186,7 @@ generate_wpa_psk() {
 
     log_info "WiFi credentials:"
     log_info "  SSID: ${WIFI_SSID}"
-    log_info "  Password: $clean_mac"
+    log_info "  Password: ${clean_mac}"
 
     log_info "WPA PSK generated successfully"
 }

@@ -20,27 +20,27 @@ log() {
 }
 
 create_shared_directory() {
-    log "Creating unified shared directory: $SHARED_DIR"
+    log "Creating unified shared directory: ${SHARED_DIR}"
 
     # Create directory structure
-    mkdir -p "$SHARED_DIR"/{uploads,downloads,firmware,configs,logs}
+    mkdir -p "${SHARED_DIR}"/{uploads,downloads,firmware,configs,logs}
 
     # Set appropriate ownership and permissions
-    chown -R pi:pi "$SHARED_DIR"
-    chmod -R 755 "$SHARED_DIR"
+    chown -R pi:pi "${SHARED_DIR}"
+    chmod -R 755 "${SHARED_DIR}"
 
     # Make uploads directory writable for web uploads
-    chmod 775 "$SHARED_DIR"/uploads
+    chmod 775 "${SHARED_DIR}"/uploads
 
     # Create welcome file from template
     if [[ -f "templates/README.txt" ]]; then
         sed -e "s|{{WIFI_IPV4_GATEWAY}}|${WIFI_IPV4_GATEWAY}|g" \
             -e "s|{{CURRENT_DATE}}|$(date)|g" \
-            "templates/README.txt" > "$SHARED_DIR/README.txt"
+            "templates/README.txt" > "${SHARED_DIR}/README.txt"
     else
         log "Warning: README template not found, creating basic file"
-        echo "USB Serial Console - Shared Directory" > "$SHARED_DIR/README.txt"
-        echo "Generated: $(date)" >> "$SHARED_DIR/README.txt"
+        echo "USB Serial Console - Shared Directory" > "${SHARED_DIR}/README.txt"
+        echo "Generated: $(date)" >> "${SHARED_DIR}/README.txt"
     fi
 
     log "Shared directory created successfully"
@@ -55,8 +55,8 @@ setup_nginx_permissions() {
     chmod 755 /tmp/nginx_upload
 
     # Ensure www-data can write to uploads directory
-    chgrp www-data "$SHARED_DIR/uploads"
-    chmod g+w "$SHARED_DIR/uploads"
+    chgrp www-data "${SHARED_DIR}/uploads"
+    chmod g+w "${SHARED_DIR}/uploads"
 }
 
 setup_tftp_permissions() {
@@ -66,10 +66,10 @@ setup_tftp_permissions() {
     usermod -a -G pi tftp 2>/dev/null || true
 
     # Make sure TFTP can write to shared directory
-    chmod g+w "$SHARED_DIR"
+    chmod g+w "${SHARED_DIR}"
 
     # Set ACL if available for more granular control
-    setfacl -m u:tftp:rwx "$SHARED_DIR" 2>/dev/null || true
+    setfacl -m u:tftp:rwx "${SHARED_DIR}" 2>/dev/null || true
 }
 
 setup_samba_permissions() {
@@ -79,7 +79,7 @@ setup_samba_permissions() {
     echo -e "raspberry\nraspberry" | smbpasswd -a pi -s
 
     # Ensure samba can access the directory
-    chmod o+rx "$SHARED_DIR"
+    chmod o+rx "${SHARED_DIR}"
 }
 
 show_access_info() {
@@ -94,7 +94,7 @@ show_access_info() {
     else
         log "Warning: Access info template not found"
         echo "=== Unified File Sharing Setup Complete ==="
-        echo "Shared Directory: $SHARED_DIR"
+        echo "Shared Directory: ${SHARED_DIR}"
         echo "Access via: http://${WIFI_IPV4_GATEWAY}/"
     fi
 
@@ -102,7 +102,7 @@ show_access_info() {
 }
 
 main() {
-    if [[ $EUID -ne 0 ]]; then
+    if [[ ${EUID} -ne 0 ]]; then
         log "ERROR: This script must be run as root"
         log "Please run: sudo $0"
         exit 1

@@ -15,9 +15,9 @@ source "../../lib/common.sh"
 services_error_exit() {
     local msg="$1"
     local code="${2:-1}"
-    log_error "Services module installation failed: $msg"
+    log_error "Services module installation failed: ${msg}"
     cleanup_on_error
-    exit "$code"
+    exit "${code}"
 }
 
 # Cleanup function for failed installations
@@ -46,12 +46,12 @@ validate_module_files() {
     )
 
     for file in "${required_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            services_error_exit "Required module file not found: $file"
+        if [[ ! -f "${file}" ]]; then
+            services_error_exit "Required module file not found: ${file}"
         fi
 
-        if [[ ! -r "$file" ]]; then
-            services_error_exit "Required module file not readable: $file"
+        if [[ ! -r "${file}" ]]; then
+            services_error_exit "Required module file not readable: ${file}"
         fi
     done
 

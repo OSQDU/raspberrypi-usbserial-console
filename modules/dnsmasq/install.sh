@@ -15,9 +15,9 @@ source "../../lib/common.sh"
 dnsmasq_error_exit() {
     local msg="$1"
     local code="${2:-1}"
-    log_error "Dnsmasq module installation failed: $msg"
+    log_error "Dnsmasq module installation failed: ${msg}"
     cleanup_on_error
-    exit "$code"
+    exit "${code}"
 }
 
 # Cleanup function for failed installations
@@ -83,24 +83,24 @@ deploy_dnsmasq_config() {
         return 1
     fi
 
-    if [[ -z "$wifi_interface" ]]; then
+    if [[ -z "${wifi_interface}" ]]; then
         log_error "WiFi interface is empty"
         return 1
     fi
 
-    if [[ -z "$ethernet_interface" ]]; then
+    if [[ -z "${ethernet_interface}" ]]; then
         log_error "Ethernet interface is empty"
         return 1
     fi
 
     # Validate interfaces exist
-    if ! ip link show "$wifi_interface" >/dev/null 2>&1; then
-        log_error "WiFi interface $wifi_interface not found"
+    if ! ip link show "${wifi_interface}" >/dev/null 2>&1; then
+        log_error "WiFi interface ${wifi_interface} not found"
         return 1
     fi
 
-    if ! ip link show "$ethernet_interface" >/dev/null 2>&1; then
-        log_warn "Ethernet interface $ethernet_interface not found (may be okay if not connected)"
+    if ! ip link show "${ethernet_interface}" >/dev/null 2>&1; then
+        log_warn "Ethernet interface ${ethernet_interface} not found (may be okay if not connected)"
     fi
 
     # Backup existing config
@@ -111,8 +111,8 @@ deploy_dnsmasq_config() {
         if ! process_template \
             "dnsmasq.conf.template" \
             "/etc/dnsmasq.conf" \
-            "WIFI_INTERFACE" "$wifi_interface" \
-            "ETHERNET_INTERFACE" "$ethernet_interface"; then
+            "WIFI_INTERFACE" "${wifi_interface}" \
+            "ETHERNET_INTERFACE" "${ethernet_interface}"; then
             log_error "Failed to process dnsmasq template"
             return 1
         fi

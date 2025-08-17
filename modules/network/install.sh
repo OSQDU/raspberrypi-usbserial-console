@@ -15,9 +15,9 @@ source "../../lib/common.sh"
 network_error_exit() {
     local msg="$1"
     local code="${2:-1}"
-    log_error "Network module installation failed: $msg"
+    log_error "Network module installation failed: ${msg}"
     cleanup_on_error
-    exit "$code"
+    exit "${code}"
 }
 
 # Cleanup function for failed installations
@@ -57,12 +57,12 @@ validate_module_files() {
     )
 
     for file in "${required_files[@]}"; do
-        if [[ ! -f "$file" ]]; then
-            network_error_exit "Required module file not found: $file"
+        if [[ ! -f "${file}" ]]; then
+            network_error_exit "Required module file not found: ${file}"
         fi
 
-        if [[ ! -r "$file" ]]; then
-            network_error_exit "Required module file not readable: $file"
+        if [[ ! -r "${file}" ]]; then
+            network_error_exit "Required module file not readable: ${file}"
         fi
     done
 
@@ -119,7 +119,7 @@ configure_ip_forwarding() {
     ipv4_forward=$(sysctl -n net.ipv4.ip_forward 2>/dev/null || echo "0")
     ipv6_forward=$(sysctl -n net.ipv6.conf.all.forwarding 2>/dev/null || echo "0")
 
-    if [[ "$ipv4_forward" == "1" ]] && [[ "$ipv6_forward" == "1" ]]; then
+    if [[ "${ipv4_forward}" == "1" ]] && [[ "${ipv6_forward}" == "1" ]]; then
         log_info "IP forwarding enabled for IPv4 and IPv6"
     else
         log_warn "IP forwarding settings may not be active yet (will apply on reboot)"
@@ -247,26 +247,26 @@ check_ssh_wifi_warning() {
     # Get all active SSH connections
     ssh_connections=$(ss -tn state established '( dport = :ssh or sport = :ssh )' 2>/dev/null || true)
 
-    if [[ -n "$ssh_connections" ]]; then
+    if [[ -n "${ssh_connections}" ]]; then
         # Check each connection to see if it's over a wireless interface
         while read -r line; do
-            if [[ "$line" =~ ESTAB ]]; then
+            if [[ "${line}" =~ ESTAB ]]; then
                 # Extract local IP from the connection
-                local_ip=$(echo "$line" | awk '{print $4}' | cut -d: -f1)
+                local_ip=$(echo "${line}" | awk '{print $4}' | cut -d: -f1)
 
                 # Find which interface this IP belongs to
-                interface=$(ip route get "$local_ip" 2>/dev/null | grep -o 'dev [^ ]*' | cut -d' ' -f2 || echo "")
+                interface=$(ip route get "${local_ip}" 2>/dev/null | grep -o 'dev [^ ]*' | cut -d' ' -f2 || echo "")
 
                 # Check if it's a wireless interface
-                if [[ -n "$interface" ]] && [[ -d "/sys/class/net/$interface/wireless" ]]; then
+                if [[ -n "${interface}" ]] && [[ -d "/sys/class/net/${interface}/wireless" ]]; then
                     ssh_via_wifi=true
                     break
                 fi
             fi
-        done <<< "$ssh_connections"
+        done <<< "${ssh_connections}"
     fi
 
-    if [[ "$ssh_via_wifi" == "true" ]]; then
+    if [[ "${ssh_via_wifi}" == "true" ]]; then
         log_warn "WARNING: Active SSH connection detected via wireless interface"
         log_warn "Configuring NetworkManager will disrupt this SSH session"
         log_warn "It's recommended to connect via Ethernet before proceeding"
@@ -277,7 +277,7 @@ check_ssh_wifi_warning() {
         echo
         read -p "Enter choice (1/2): " choice
 
-        case "$choice" in
+        case "${choice}" in
             1)
                 log_info "Installation stopped. Please connect via Ethernet and restart."
                 exit 0

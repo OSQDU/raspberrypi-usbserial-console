@@ -15,27 +15,39 @@ readonly NC='\033[0m' # No Color
 # Project configuration
 readonly PROJECT_NAME="USB Serial Console"
 readonly PROJECT_VERSION="2.0"
+export PROJECT_NAME PROJECT_VERSION
 
 # Logging functions
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $(date '+%H:%M:%S') $*" >&2
+    local timestamp
+    timestamp=$(date '+%H:%M:%S')
+    echo -e "${BLUE}[INFO]${NC} ${timestamp} $*" >&2
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $(date '+%H:%M:%S') $*" >&2
+    local timestamp
+    timestamp=$(date '+%H:%M:%S')
+    echo -e "${GREEN}[SUCCESS]${NC} ${timestamp} $*" >&2
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $(date '+%H:%M:%S') $*" >&2
+    local timestamp
+    timestamp=$(date '+%H:%M:%S')
+    echo -e "${YELLOW}[WARN]${NC} ${timestamp} $*" >&2
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $(date '+%H:%M:%S') $*" >&2
+    local timestamp
+    timestamp=$(date '+%H:%M:%S')
+    echo -e "${RED}[ERROR]${NC} ${timestamp} $*" >&2
 }
 
 log_debug() {
-    [[ "${DEBUG:-0}" == "1" ]] && echo -e "[DEBUG] $(date '+%H:%M:%S') $*" >&2
-    return 0
+    if [[ "${DEBUG:-0}" == "1" ]]; then
+        local timestamp
+        timestamp=$(date '+%H:%M:%S')
+        echo -e "[DEBUG] ${timestamp} $*" >&2
+    fi
 }
 
 # Load global configuration
@@ -44,7 +56,7 @@ load_global_config() {
     local script_dir
 
     # Find the script directory relative to where this function is called
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)" || return 1
 
     # Look for config file in several locations
     local config_paths=(
@@ -56,10 +68,10 @@ load_global_config() {
     )
 
     for config_file in "${config_paths[@]}"; do
-        if [[ -f "$config_file" && -r "$config_file" ]]; then
+        if [[ -f "${config_file}" && -r "${config_file}" ]]; then
             # shellcheck source=/dev/null
-            source "$config_file"
-            log_debug "Loaded configuration from: $config_file"
+            source "${config_file}"
+            log_debug "Loaded configuration from: ${config_file}"
             return 0
         fi
     done
@@ -75,33 +87,37 @@ load_global_config
 error_exit() {
     local msg="$1"
     local code="${2:-1}"
-    log_error "$msg"
-    exit "$code"
+    log_error "${msg}"
+    exit "${code}"
 }
 
 # Check if running as root
 require_root() {
-    [[ $EUID -eq 0 ]] || error_exit "This operation requires root privileges. Please run with sudo."
+    if [[ ${EUID} -ne 0 ]]; then
+        error_exit "This operation requires root privileges. Please run with sudo."
+    fi
 }
 
 # Check if running as non-root
 require_user() {
-    [[ $EUID -ne 0 ]] || error_exit "This operation should not be run as root."
+    if [[ ${EUID} -eq 0 ]]; then
+        error_exit "This operation should not be run as root."
+    fi
 }
 
 # File operations with backup
 backup_file() {
     local file="$1"
-    local backup_dir="${2:-$CONFIG_DIR/backups}"
+    local backup_dir="${2:-${CONFIG_DIR}/backups}"
 
-    if [[ -f "$file" ]]; then
-        mkdir -p "$backup_dir"
+    if [[ -f "${file}" ]]; then
+        mkdir -p "${backup_dir}"
         local timestamp
         timestamp=$(date +%Y%m%d-%H%M%S)
         local backup_file
-        backup_file="$backup_dir/$(basename "$file").bak.$timestamp"
-        cp "$file" "$backup_file"
-        log_info "Backed up $file to $backup_file"
+        backup_file="${backup_dir}/$(basename "${file}").bak.${timestamp}"
+        cp "${file}" "${backup_file}"
+        log_info "Backed up ${file} to ${backup_file}"
     fi
 }
 
@@ -111,14 +127,16 @@ replace_file() {
     local target="$2"
     local backup="${3:-true}"
 
-    [[ -f "$source" ]] || error_exit "Source file does not exist: $source"
-
-    if [[ "$backup" == "true" ]]; then
-        backup_file "$target"
+    if [[ ! -f "${source}" ]]; then
+        error_exit "Source file does not exist: ${source}"
     fi
 
-    cp "$source" "$target"
-    log_info "Replaced $target with $source"
+    if [[ "${backup}" == "true" ]]; then
+        backup_file "${target}"
+    fi
+
+    cp "${source}" "${target}"
+    log_info "Replaced ${target} with ${source}"
 }
 
 # Template processing
@@ -127,21 +145,23 @@ process_template() {
     local output="$2"
     shift 2
 
-    [[ -f "$template" ]] || error_exit "Template file does not exist: $template"
+    if [[ ! -f "${template}" ]]; then
+        error_exit "Template file does not exist: ${template}"
+    fi
 
     local content
-    content=$(cat "$template")
+    content=$(cat "${template}")
 
     # Replace variables in format {{VARIABLE}}
     while [[ $# -gt 0 ]]; do
         local var="$1"
         local value="$2"
-        content=${content//\{\{$var\}\}/$value}
+        content=${content//\{\{${var}\}\}/${value}}
         shift 2
     done
 
-    echo "$content" > "$output"
-    log_info "Generated $output from template $template"
+    echo "${content}" > "${output}"
+    log_info "Generated ${output} from template ${template}"
 }
 
 # Service management
@@ -149,40 +169,40 @@ manage_service() {
     local action="$1"
     local service="$2"
 
-    case "$action" in
+    case "${action}" in
         enable)
-            systemctl enable "$service"
-            log_info "Enabled service: $service"
+            systemctl enable "${service}"
+            log_info "Enabled service: ${service}"
             ;;
         disable)
-            systemctl disable "$service" 2>/dev/null || true
-            log_info "Disabled service: $service"
+            systemctl disable "${service}" 2>/dev/null || true
+            log_info "Disabled service: ${service}"
             ;;
         start)
-            systemctl start "$service"
-            log_info "Started service: $service"
+            systemctl start "${service}"
+            log_info "Started service: ${service}"
             ;;
         stop)
-            systemctl stop "$service" 2>/dev/null || true
-            log_info "Stopped service: $service"
+            systemctl stop "${service}" 2>/dev/null || true
+            log_info "Stopped service: ${service}"
             ;;
         restart)
-            systemctl restart "$service"
-            log_info "Restarted service: $service"
+            systemctl restart "${service}"
+            log_info "Restarted service: ${service}"
             ;;
         reload)
-            systemctl reload "$service" 2>/dev/null || systemctl restart "$service"
-            log_info "Reloaded service: $service"
+            systemctl reload "${service}" 2>/dev/null || systemctl restart "${service}"
+            log_info "Reloaded service: ${service}"
             ;;
         status)
-            if systemctl is-active --quiet "$service"; then
-                log_success "$service is running"
+            if systemctl is-active --quiet "${service}"; then
+                log_success "${service} is running"
             else
-                log_warn "$service is not running"
+                log_warn "${service} is not running"
             fi
             ;;
         *)
-            error_exit "Unknown service action: $action"
+            error_exit "Unknown service action: ${action}"
             ;;
     esac
 }
@@ -191,25 +211,25 @@ manage_service() {
 install_package() {
     local package="$1"
 
-    if ! dpkg -l "$package" >/dev/null 2>&1; then
-        log_info "Installing package: $package"
+    if ! dpkg -l "${package}" >/dev/null 2>&1; then
+        log_info "Installing package: ${package}"
         apt-get update -qq
-        apt-get install -y "$package"
-        log_success "Installed package: $package"
+        apt-get install -y "${package}"
+        log_success "Installed package: ${package}"
     else
-        log_info "Package already installed: $package"
+        log_info "Package already installed: ${package}"
     fi
 }
 
 remove_package() {
     local package="$1"
 
-    if dpkg -l "$package" >/dev/null 2>&1; then
-        log_info "Removing package: $package"
-        apt-get remove -y "$package"
-        log_success "Removed package: $package"
+    if dpkg -l "${package}" >/dev/null 2>&1; then
+        log_info "Removing package: ${package}"
+        apt-get remove -y "${package}"
+        log_success "Removed package: ${package}"
     else
-        log_info "Package not installed: $package"
+        log_info "Package not installed: ${package}"
     fi
 }
 
@@ -230,13 +250,13 @@ get_mac_address() {
     local interface="$1"
     local mac_addr
 
-    if [[ -f "/sys/class/net/$interface/address" ]]; then
-        mac_addr=$(cat "/sys/class/net/$interface/address")
+    if [[ -f "/sys/class/net/${interface}/address" ]]; then
+        mac_addr=$(cat "/sys/class/net/${interface}/address")
     else
-        mac_addr=$(ip link show "$interface" 2>/dev/null | awk '/link\/ether/ {print $2}')
+        mac_addr=$(ip link show "${interface}" 2>/dev/null | awk '/link\/ether/ {print $2}')
     fi
 
-    echo "$mac_addr"
+    echo "${mac_addr}"
 }
 
 # Hardware detection
@@ -247,14 +267,14 @@ detect_pi_model() {
     else
         model="Unknown Raspberry Pi"
     fi
-    echo "$model"
+    echo "${model}"
 }
 
 detect_pi_version() {
     local model
     model=$(detect_pi_model)
 
-    case "$model" in
+    case "${model}" in
         *"Pi 5"*) echo "5" ;;
         *"Pi 4"*) echo "4" ;;
         *"Pi 3"*) echo "3" ;;
@@ -269,7 +289,7 @@ validate_ip() {
     local ip="$1"
     local regex='^([0-9]{1,3}\.){3}[0-9]{1,3}$'
 
-    if [[ $ip =~ $regex ]]; then
+    if [[ ${ip} =~ ${regex} ]]; then
         local IFS='.'
         local -a octets
         read -ra octets <<< "${ip//./ }"
@@ -282,7 +302,7 @@ validate_ip() {
 validate_mac() {
     local mac="$1"
     local regex='^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$'
-    [[ $mac =~ $regex ]]
+    [[ ${mac} =~ ${regex} ]]
 }
 
 # Progress indication
@@ -296,21 +316,23 @@ show_progress() {
     local empty=$((50 - filled))
 
     printf "\r${BLUE}[%s%s]${NC} %d%% %s" \
-        "$(printf "%*s" $filled | tr ' ' '█')" \
-        "$(printf "%*s" $empty | tr ' ' '░')" \
-        "$percentage" \
-        "$description"
+        "$(printf "%*s" "${filled}" | tr ' ' '#')" \
+        "$(printf "%*s" "${empty}" | tr ' ' '-')" \
+        "${percentage}" \
+        "${description}"
 
-    [[ $current -eq $total ]] && echo
+    if [[ ${current} -eq ${total} ]]; then
+        echo
+    fi
 }
 
 # Configuration helpers
 create_config_dirs() {
-    local dirs=("$CONFIG_DIR" "$LOG_DIR" "$SHARED_DIR")
+    local dirs=("${CONFIG_DIR}" "${LOG_DIR}" "${SHARED_DIR}")
 
     for dir in "${dirs[@]}"; do
-        mkdir -p "$dir"
-        log_debug "Created directory: $dir"
+        mkdir -p "${dir}"
+        log_debug "Created directory: ${dir}"
     done
 }
 

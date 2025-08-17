@@ -4,21 +4,21 @@
 set -euo pipefail
 
 LOG_FILE="{{LOG_DIR}}/startup.log"
-mkdir -p "$(dirname "$LOG_FILE")"
+mkdir -p "$(dirname "${LOG_FILE}")"
 
 log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "${LOG_FILE}"
 }
 
 start_service() {
     local service="$1"
-    log "Starting service: $service"
+    log "Starting service: ${service}"
 
-    if systemctl start "$service"; then
-        log "Service started successfully: $service"
+    if systemctl start "${service}"; then
+        log "Service started successfully: ${service}"
         return 0
     else
-        log "Failed to start service: $service"
+        log "Failed to start service: ${service}"
         return 1
     fi
 }
@@ -28,18 +28,18 @@ wait_for_interface() {
     local timeout={{INTERFACE_WAIT_TIMEOUT}}
     local count=0
 
-    log "Waiting for interface: $interface"
+    log "Waiting for interface: ${interface}"
 
-    while [[ $count -lt $timeout ]]; do
-        if ip link show "$interface" >/dev/null 2>&1; then
-            log "Interface ready: $interface"
+    while [[ ${count} -lt ${timeout} ]]; do
+        if ip link show "${interface}" >/dev/null 2>&1; then
+            log "Interface ready: ${interface}"
             return 0
         fi
         sleep 1
         ((count++))
     done
 
-    log "Timeout waiting for interface: $interface"
+    log "Timeout waiting for interface: ${interface}"
     return 1
 }
 
@@ -54,8 +54,8 @@ main() {
     local failed_services=()
 
     for service in "${services[@]}"; do
-        if ! start_service "$service"; then
-            failed_services+=("$service")
+        if ! start_service "${service}"; then
+            failed_services+=("${service}")
         fi
         sleep 2  # Brief pause between service starts
     done

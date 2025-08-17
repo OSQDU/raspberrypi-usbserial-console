@@ -23,7 +23,7 @@ main() {
     )
 
     for package in "${essential_packages[@]}"; do
-        install_package "$package"
+        install_package "${package}"
     done
 
     # Create project directories
@@ -65,12 +65,12 @@ configure_system_settings() {
 
     # Set hostname
     local new_hostname="usbserial-console"
-    hostnamectl set-hostname "$new_hostname"
+    hostnamectl set-hostname "${new_hostname}"
 
     # Update /etc/hosts
-    sed -i "s/127.0.1.1.*/127.0.1.1\t$new_hostname/" /etc/hosts
+    sed -i "s/127.0.1.1.*/127.0.1.1\t${new_hostname}/" /etc/hosts
 
-    log_info "System hostname set to: $new_hostname"
+    log_info "System hostname set to: ${new_hostname}"
 }
 
 main "$@"

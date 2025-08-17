@@ -1,6 +1,7 @@
 #!/bin/bash
 # lib/modules.sh - Module management for USB Serial Console installation
 
+# shellcheck source=./common.sh
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 # Module registry
@@ -48,36 +49,40 @@ list_modules() {
     log_info "Available modules:"
     for module in "${!MODULES[@]}"; do
         local status=""
-        if [[ "$available_only" == "false" ]]; then
-            if is_module_installed "$module"; then
+        if [[ "${available_only}" == "false" ]]; then
+            if is_module_installed "${module}"; then
                 status=" ${GREEN}[installed]${NC}"
             else
                 status=" ${YELLOW}[available]${NC}"
             fi
         fi
-        echo -e "  ${BLUE}$module${NC} - ${MODULES[$module]}$status"
+        echo -e "  ${BLUE}${module}${NC} - ${MODULES[${module}]}${status}"
     done
 }
 
 # Check if module exists
 module_exists() {
     local module="$1"
-    [[ -n "${MODULES[$module]}" ]]
+    [[ -n "${MODULES[${module}]}" ]]
 }
 
 # Check if module is installed
 is_module_installed() {
     local module="$1"
     local module_file="modules/${module}/install.sh"
-    local marker_file="$CONFIG_DIR/installed/$module"
+    local marker_file="${CONFIG_DIR}/installed/${module}"
 
-    [[ -f "$marker_file" ]] && [[ -f "$module_file" ]]
+    if [[ -f "${marker_file}" ]] && [[ -f "${module_file}" ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 # Get module dependencies
 get_dependencies() {
     local module="$1"
-    echo "${MODULE_DEPS[$module]:-}"
+    echo "${MODULE_DEPS[${module}]:-}"
 }
 
 # Resolve dependency order
@@ -91,37 +96,45 @@ resolve_dependencies() {
 
         # Check for circular dependency
         for proc in "${processing[@]}"; do
-            [[ "$proc" == "$module" ]] && error_exit "Circular dependency detected: $module"
+            if [[ "${proc}" == "${module}" ]]; then
+                error_exit "Circular dependency detected: ${module}"
+            fi
         done
 
         # Skip if already resolved
         for res in "${resolved[@]}"; do
-            [[ "$res" == "$module" ]] && return
+            if [[ "${res}" == "${module}" ]]; then
+                return
+            fi
         done
 
-        processing+=("$module")
+        processing+=("${module}")
 
         # Resolve dependencies first
         local deps
-        deps=$(get_dependencies "$module")
-        for dep in $deps; do
-            resolve_module "$dep"
+        deps=$(get_dependencies "${module}")
+        for dep in ${deps}; do
+            resolve_module "${dep}"
         done
 
-        resolved+=("$module")
+        resolved+=("${module}")
 
         # Remove from processing
         local -a new_processing=()
         for proc in "${processing[@]}"; do
-            [[ "$proc" != "$module" ]] && new_processing+=("$proc")
+            if [[ "${proc}" != "${module}" ]]; then
+                new_processing+=("${proc}")
+            fi
         done
         processing=("${new_processing[@]}")
     }
 
     # Resolve all requested modules
     for module in "${requested_modules[@]}"; do
-        module_exists "$module" || error_exit "Unknown module: $module"
-        resolve_module "$module"
+        if ! module_exists "${module}"; then
+            error_exit "Unknown module: ${module}"
+        fi
+        resolve_module "${module}"
     done
 
     echo "${resolved[@]}"
@@ -130,12 +143,12 @@ resolve_dependencies() {
 # Install module packages
 install_module_packages() {
     local module="$1"
-    local packages="${MODULE_PACKAGES[$module]:-}"
+    local packages="${MODULE_PACKAGES[${module}]:-}"
 
-    if [[ -n "$packages" ]]; then
-        log_info "Installing packages for module: $module"
-        for package in $packages; do
-            install_package "$package"
+    if [[ -n "${packages}" ]]; then
+        log_info "Installing packages for module: ${module}"
+        for package in ${packages}; do
+            install_package "${package}"
         done
     fi
 }
@@ -145,66 +158,66 @@ install_module() {
     local module="$1"
     local force="${2:-false}"
 
-    if ! module_exists "$module"; then
-        error_exit "Unknown module: $module"
+    if ! module_exists "${module}"; then
+        error_exit "Unknown module: ${module}"
     fi
 
-    if is_module_installed "$module" && [[ "$force" != "true" ]]; then
-        log_info "Module already installed: $module"
+    if is_module_installed "${module}" && [[ "${force}" != "true" ]]; then
+        log_info "Module already installed: ${module}"
         return
     fi
 
-    local module_dir="modules/$module"
-    local install_script="$module_dir/install.sh"
+    local module_dir="modules/${module}"
+    local install_script="${module_dir}/install.sh"
 
-    if [[ ! -f "$install_script" ]]; then
-        error_exit "Module installation script not found: $install_script"
+    if [[ ! -f "${install_script}" ]]; then
+        error_exit "Module installation script not found: ${install_script}"
     fi
 
-    log_info "Installing module: $module"
+    log_info "Installing module: ${module}"
 
     # Install required packages
-    install_module_packages "$module"
+    install_module_packages "${module}"
 
     # Run module installation script
     (
-        cd "$module_dir"
+        cd "${module_dir}"
         bash install.sh
-    ) || error_exit "Failed to install module: $module"
+    ) || error_exit "Failed to install module: ${module}"
 
     # Mark as installed
-    mkdir -p "$CONFIG_DIR/installed"
-    touch "$CONFIG_DIR/installed/$module"
+    mkdir -p "${CONFIG_DIR}/installed"
+    touch "${CONFIG_DIR}/installed/${module}"
 
-    log_success "Module installed: $module"
+    log_success "Module installed: ${module}"
 }
 
 # Uninstall module
 uninstall_module() {
     local module="$1"
 
-    if ! is_module_installed "$module"; then
-        log_warn "Module not installed: $module"
+    if ! is_module_installed "${module}"; then
+        log_warn "Module not installed: ${module}"
         return
     fi
 
-    local module_dir="modules/$module"
-    local uninstall_script="$module_dir/uninstall.sh"
+    local module_dir="modules/${module}"
+    local uninstall_script="${module_dir}/uninstall.sh"
 
-    log_info "Uninstalling module: $module"
+    log_info "Uninstalling module: ${module}"
 
     # Run module uninstall script if it exists
-    if [[ -f "$uninstall_script" ]]; then
+    if [[ -f "${uninstall_script}" ]]; then
         (
-            cd "$module_dir"
+            cd "${module_dir}"
             bash uninstall.sh
-        ) || log_warn "Module uninstall script failed: $module"
+        ) || log_warn "Module uninstall script failed: ${module}"
     fi
 
     # Remove installation marker
-    rm -f "$CONFIG_DIR/installed/$module"
+    rm -f "${CONFIG_DIR}/installed/${module}"
 
-    log_success "Module uninstalled: $module"
+    log_success "Module uninstalled: ${module}"
 }
 
 # Install multiple modules with dependency resolution
@@ -228,13 +241,13 @@ install_modules() {
 
     for module in "${resolved_modules[@]}"; do
         current=$((current + 1))
-        show_progress "$current" "$total" "Installing $module..."
-        log_debug "About to install module: $module"
-        install_module "$module" || {
-            log_error "Installation failed for module: $module"
+        show_progress "${current}" "${total}" "Installing ${module}..."
+        log_debug "About to install module: ${module}"
+        install_module "${module}" || {
+            log_error "Installation failed for module: ${module}"
             return 1
         }
-        log_debug "Successfully installed module: $module"
+        log_debug "Successfully installed module: ${module}"
     done
 
     echo
@@ -244,18 +257,18 @@ install_modules() {
 # Validate module installation
 validate_module() {
     local module="$1"
-    local module_dir="modules/$module"
-    local validate_script="$module_dir/validate.sh"
+    local module_dir="modules/${module}"
+    local validate_script="${module_dir}/validate.sh"
 
-    if [[ -f "$validate_script" ]]; then
-        log_info "Validating module: $module"
+    if [[ -f "${validate_script}" ]]; then
+        log_info "Validating module: ${module}"
         (
-            cd "$module_dir"
+            cd "${module_dir}"
             bash validate.sh
-        ) || error_exit "Module validation failed: $module"
-        log_success "Module validation passed: $module"
+        ) || error_exit "Module validation failed: ${module}"
+        log_success "Module validation passed: ${module}"
     else
-        log_debug "No validation script for module: $module"
+        log_debug "No validation script for module: ${module}"
     fi
 }
 
@@ -263,24 +276,24 @@ validate_module() {
 show_module_status() {
     local module="$1"
 
-    echo "Module: $module"
-    echo "Description: ${MODULES[$module]}"
-    echo "Dependencies: $(get_dependencies "$module")"
-    echo "Packages: ${MODULE_PACKAGES[$module]:-"none"}"
+    echo "Module: ${module}"
+    echo "Description: ${MODULES[${module}]}"
+    echo "Dependencies: $(get_dependencies "${module}")"
+    echo "Packages: ${MODULE_PACKAGES[${module}]:-"none"}"
 
-    if is_module_installed "$module"; then
+    if is_module_installed "${module}"; then
         echo -e "Status: ${GREEN}installed${NC}"
 
         # Show service status if applicable
-        case "$module" in
+        case "${module}" in
             hostapd|dnsmasq|nginx|tftp|samba)
                 local service_status
-                if systemctl is-active --quiet "$module"; then
+                if systemctl is-active --quiet "${module}"; then
                     service_status="${GREEN}running${NC}"
                 else
                     service_status="${RED}stopped${NC}"
                 fi
-                echo -e "Service: $service_status"
+                echo -e "Service: ${service_status}"
                 ;;
         esac
     else
@@ -291,18 +304,18 @@ show_module_status() {
 # Module configuration
 configure_module() {
     local module="$1"
-    local module_dir="modules/$module"
-    local config_script="$module_dir/configure.sh"
+    local module_dir="modules/${module}"
+    local config_script="${module_dir}/configure.sh"
 
-    if [[ -f "$config_script" ]]; then
-        log_info "Configuring module: $module"
+    if [[ -f "${config_script}" ]]; then
+        log_info "Configuring module: ${module}"
         (
-            cd "$module_dir"
+            cd "${module_dir}"
             bash configure.sh
-        ) || error_exit "Module configuration failed: $module"
-        log_success "Module configured: $module"
+        ) || error_exit "Module configuration failed: ${module}"
+        log_success "Module configured: ${module}"
     else
-        log_debug "No configuration script for module: $module"
+        log_debug "No configuration script for module: ${module}"
     fi
 }
 

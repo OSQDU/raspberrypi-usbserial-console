@@ -6,9 +6,9 @@ echo "=========================="
 
 if ls /dev/{{USB_DEVICE_PREFIX}}-* >/dev/null 2>&1; then
     for device in /dev/{{USB_DEVICE_PREFIX}}-*; do
-        device_name=$(basename "$device")
-        if [[ -c "$device" ]]; then
-            echo "  $device_name -> $device"
+        device_name=$(basename "${device}")
+        if [[ -c "${device}" ]]; then
+            echo "  ${device_name} -> ${device}"
         fi
     done
 else
