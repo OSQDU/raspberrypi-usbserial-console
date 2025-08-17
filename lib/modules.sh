@@ -86,7 +86,7 @@ resolve_dependencies() {
     local -a resolved=()
     local -a processing=()
 
-    local resolve_module() {
+    resolve_module() {
         local module="$1"
 
         # Check for circular dependency
