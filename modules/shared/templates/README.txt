@@ -8,7 +8,7 @@ TFTP:      tftp://{{WIFI_IPV4_GATEWAY}}/
 SMB/CIFS:  \\{{WIFI_IPV4_GATEWAY}}\shared
 
 Subdirectories:
-- uploads/   - Upload files here
+- uploadonly/ - Upload files here
 - downloads/ - Download files from here
 - firmware/  - Device firmware files
 - configs/   - Configuration backups

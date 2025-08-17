@@ -5,7 +5,7 @@ Shared Directory: {{SHARED_DIR}}
 Access Methods:
 1. HTTP/Web Browser:
    URL: http://{{WIFI_IPV4_GATEWAY}}/
-   Upload: http://{{WIFI_IPV4_GATEWAY}}/upload/
+   Upload: http://{{WIFI_IPV4_GATEWAY}}/uploadonly/
 
 2. TFTP:
    Upload: tftp {{WIFI_IPV4_GATEWAY}} -c put filename
@@ -22,7 +22,7 @@ Default Credentials:
 
 Directory Structure:
 {{SHARED_DIR}}/
-├── uploads/     (file uploads)
+├── uploadonly/  (file uploads)
 ├── downloads/   (file downloads)
 ├── firmware/    (device firmware)
 ├── configs/     (configuration backups)
