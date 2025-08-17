@@ -17,7 +17,6 @@ readonly DEFAULT_MODULES=(
     "network"
     "shared"
     "udev"
-    "hostapd"
     "dnsmasq"
     "nginx"
     "tftp"

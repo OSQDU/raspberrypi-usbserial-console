@@ -24,6 +24,10 @@ network_error_exit() {
 cleanup_on_error() {
     log_warn "Cleaning up partial installation..."
 
+    # Remove NetworkManager hotspot connection
+    nmcli connection delete "USBSerial-Console" 2>/dev/null || true
+    rm -f /etc/NetworkManager/system-connections/USBSerial-Console.nmconnection
+
     # Stop and disable services that might have been started
     systemctl stop setup-nat 2>/dev/null || true
     systemctl disable setup-nat 2>/dev/null || true
@@ -33,6 +37,7 @@ cleanup_on_error() {
     rm -f /usr/local/bin/configure-nat
     rm -rf /usr/local/share/usbserial/templates
     rm -f /etc/dhcpcd.exit-hooks.d/usb-serial-console
+    rm -f /etc/NetworkManager/conf.d/99-disable-dnsmasq.conf
 
     # Reload systemd
     systemctl daemon-reload 2>/dev/null || true
@@ -46,8 +51,8 @@ validate_module_files() {
         "templates/nftables.conf.template"
         "templates/setup-nat.service"
         "templates/dhcpcd-ipv6.conf"
-        "templates/networkmanager/99-unmanage-wlan0.conf"
         "templates/networkmanager/99-disable-dnsmasq.conf"
+        "templates/networkmanager/USBSerial-Console.nmconnection"
         "templates/update-issue.service"
         "templates/update-issue.timer"
         "scripts/configure-nat.sh"
@@ -70,7 +75,7 @@ validate_module_files() {
 }
 
 main() {
-    log_info "Installing network module..."
+    log_info "Installing network module with WiFi hotspot..."
 
     # Validate module files exist
     validate_module_files
@@ -83,6 +88,9 @@ main() {
 
     # Configure NetworkManager
     configure_network_manager || network_error_exit "Failed to configure NetworkManager"
+
+    # Create WiFi hotspot
+    create_wifi_hotspot || network_error_exit "Failed to create WiFi hotspot"
 
     # Setup dynamic issue file updates
     setup_issue_updates || network_error_exit "Failed to setup issue file updates"
@@ -221,7 +229,7 @@ install_dhcpv6_hooks() {
 }
 
 configure_network_manager() {
-    log_info "Configuring NetworkManager for hostapd compatibility..."
+    log_info "Configuring NetworkManager for WiFi hotspot..."
 
     # Check for active SSH connections via WiFi and get user preference
     local nm_action
@@ -231,7 +239,6 @@ configure_network_manager() {
     mkdir -p /etc/NetworkManager/conf.d
 
     # Deploy NetworkManager configurations from templates
-    cp "templates/networkmanager/99-unmanage-wlan0.conf" "/etc/NetworkManager/conf.d/"
     cp "templates/networkmanager/99-disable-dnsmasq.conf" "/etc/NetworkManager/conf.d/"
 
     # Handle NetworkManager reload based on SSH detection
@@ -252,7 +259,7 @@ configure_network_manager() {
             ;;
     esac
 
-    log_info "NetworkManager configured for AP mode compatibility"
+    log_info "NetworkManager configured for WiFi hotspot"
 }
 
 check_ssh_wifi_warning() {
@@ -329,6 +336,87 @@ check_ssh_wifi_warning() {
         # No SSH via WiFi detected, safe to reload immediately
         echo "reload_now"
     fi
+}
+
+create_wifi_hotspot() {
+    log_info "Creating WiFi hotspot using NetworkManager configuration file..."
+
+    local wifi_interface
+    if ! wifi_interface=$(get_wifi_interface); then
+        log_error "Failed to determine WiFi interface"
+        return 1
+    fi
+
+    if [[ -z "${wifi_interface}" ]]; then
+        log_error "WiFi interface is empty"
+        return 1
+    fi
+
+    # Validate WiFi interface exists
+    if ! ip link show "${wifi_interface}" >/dev/null 2>&1; then
+        log_error "WiFi interface ${wifi_interface} not found"
+        return 1
+    fi
+
+    # Generate WPA PSK from MAC address
+    local mac_addr
+    if ! mac_addr=$(get_mac_address "${wifi_interface}"); then
+        log_error "Failed to get MAC address for ${wifi_interface}"
+        return 1
+    fi
+
+    if [[ -z "${mac_addr}" ]]; then
+        log_error "Could not determine MAC address for ${wifi_interface}"
+        return 1
+    fi
+
+    # Validate MAC address format
+    if ! [[ "${mac_addr}" =~ ^[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}$ ]]; then
+        log_error "Invalid MAC address format: ${mac_addr}"
+        return 1
+    fi
+
+    # Clean MAC address (remove colons, convert to uppercase)
+    local clean_mac
+    clean_mac=$(echo "${mac_addr}" | tr -d ':' | tr 'a-f' 'A-F')
+
+    if [[ ${#clean_mac} -ne 12 ]]; then
+        log_error "Invalid cleaned MAC address length: ${clean_mac}"
+        return 1
+    fi
+
+    # Remove any existing hotspot connections
+    nmcli connection delete "USBSerial-Console" 2>/dev/null || true
+
+    # Create NetworkManager connections directory
+    mkdir -p /etc/NetworkManager/system-connections
+
+    # Deploy NetworkManager connection file from template
+    log_info "Deploying NetworkManager hotspot connection file..."
+    
+    if ! process_template "templates/networkmanager/USBSerial-Console.nmconnection" \
+        "/etc/NetworkManager/system-connections/USBSerial-Console.nmconnection" \
+        "WIFI_INTERFACE" "${wifi_interface}" \
+        "WIFI_SSID" "${WIFI_SSID}" \
+        "WIFI_PASSWORD" "${clean_mac}" \
+        "WIFI_IPV4_GATEWAY" "${WIFI_IPV4_GATEWAY}"; then
+        log_error "Failed to deploy NetworkManager connection file"
+        return 1
+    fi
+
+    # Set proper permissions for NetworkManager connection file
+    chmod 600 /etc/NetworkManager/system-connections/USBSerial-Console.nmconnection
+
+    # Reload NetworkManager to pick up the new connection
+    if ! nmcli connection reload; then
+        log_warn "Failed to reload NetworkManager connections"
+    fi
+
+    log_info "WiFi hotspot connection configured successfully"
+    log_info "  SSID: ${WIFI_SSID}"
+    log_info "  Password: ${clean_mac}"
+    log_info "  Interface: ${wifi_interface}"
+    log_info "  Gateway: ${WIFI_IPV4_GATEWAY}"
 }
 
 setup_issue_updates() {

@@ -7,8 +7,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 # Module registry
 declare -A MODULES=(
     ["system"]="System preparation and validation"
-    ["network"]="Network interface configuration"
-    ["hostapd"]="WiFi Access Point setup"
+    ["network"]="Network interface and WiFi hotspot configuration"
     ["dnsmasq"]="DNS and DHCP server"
     ["nginx"]="HTTP file server"
     ["tftp"]="TFTP file server"
@@ -21,20 +20,18 @@ declare -A MODULES=(
 
 # Module dependencies
 declare -A MODULE_DEPS=(
-    ["hostapd"]="system network"
     ["dnsmasq"]="system network"
     ["nginx"]="system shared"
     ["tftp"]="system shared"
     ["samba"]="system shared"
     ["udev"]="system"
     ["minicom"]="system udev"
-    ["services"]="system hostapd dnsmasq"
+    ["services"]="system network dnsmasq"
     ["shared"]="system"
 )
 
 # Module packages
 declare -A MODULE_PACKAGES=(
-    ["hostapd"]="hostapd"
     ["dnsmasq"]="dnsmasq"
     ["nginx"]="nginx-light"
     ["tftp"]="tftpd-hpa"
@@ -286,7 +283,7 @@ show_module_status() {
 
         # Show service status if applicable
         case "${module}" in
-            hostapd|dnsmasq|nginx|tftp|samba)
+            dnsmasq|nginx|tftp|samba)
                 local service_status
                 if systemctl is-active --quiet "${module}"; then
                     service_status="${GREEN}running${NC}"
