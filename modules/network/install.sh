@@ -223,8 +223,9 @@ install_dhcpv6_hooks() {
 configure_network_manager() {
     log_info "Configuring NetworkManager for hostapd compatibility..."
 
-    # Check for active SSH connections via WiFi
-    check_ssh_wifi_warning
+    # Check for active SSH connections via WiFi and get user preference
+    local nm_action
+    nm_action=$(check_ssh_wifi_warning)
 
     # Create NetworkManager config directory
     mkdir -p /etc/NetworkManager/conf.d
@@ -233,13 +234,34 @@ configure_network_manager() {
     cp "templates/networkmanager/99-unmanage-wlan0.conf" "/etc/NetworkManager/conf.d/"
     cp "templates/networkmanager/99-disable-dnsmasq.conf" "/etc/NetworkManager/conf.d/"
 
-    # Reload NetworkManager configuration
-    systemctl reload NetworkManager 2>/dev/null || true
+    # Handle NetworkManager reload based on SSH detection
+    case "${nm_action}" in
+        "restart_later")
+            log_info "NetworkManager configuration deployed (will restart after installation)"
+            # Set flag for later restart
+            export RESTART_NETWORKMANAGER_LATER="true"
+            ;;
+        "restart_now")
+            log_warn "Restarting NetworkManager now (SSH session may disconnect)"
+            systemctl restart NetworkManager 2>/dev/null || true
+            log_info "NetworkManager restarted"
+            ;;
+        "reload_now")
+            systemctl reload NetworkManager 2>/dev/null || true
+            log_info "NetworkManager configuration reloaded"
+            ;;
+    esac
 
     log_info "NetworkManager configured for AP mode compatibility"
 }
 
 check_ssh_wifi_warning() {
+    # Skip interactive prompt if running non-interactively
+    if [[ "${NONINTERACTIVE:-false}" == "true" ]] || [[ ! -t 0 ]]; then
+        echo "reload_now"
+        return 0
+    fi
+
     # Check for active SSH connections over wireless interfaces
     local ssh_via_wifi=false
     local ssh_connections=""
@@ -268,14 +290,15 @@ check_ssh_wifi_warning() {
 
     if [[ "${ssh_via_wifi}" == "true" ]]; then
         log_warn "WARNING: Active SSH connection detected via wireless interface"
-        log_warn "Configuring NetworkManager will disrupt this SSH session"
-        log_warn "It's recommended to connect via Ethernet before proceeding"
+        log_warn "NetworkManager configuration changes may disrupt this SSH session"
         echo
         echo "Options:"
         echo "  1. Stop installation and connect via Ethernet"
-        echo "  2. Continue anyway (will likely disconnect this SSH session)"
+        echo "  2. Defer NetworkManager restart until end of installation"
+        echo "  3. Continue with immediate restart (may disconnect SSH)"
+        echo "  4. Continue with reload only (less disruptive)"
         echo
-        read -p "Enter choice (1/2): " choice
+        read -p "Enter choice (1/2/3/4): " choice
 
         case "${choice}" in
             1)
@@ -283,14 +306,28 @@ check_ssh_wifi_warning() {
                 exit 0
                 ;;
             2)
-                log_warn "Continuing - this SSH session will likely be disconnected"
-                sleep 3
+                echo "restart_later"
+                return 0
+                ;;
+            3)
+                log_warn "Will restart NetworkManager immediately"
+                echo "restart_now"
+                return 0
+                ;;
+            4)
+                log_info "Will reload NetworkManager configuration only"
+                echo "reload_now"
+                return 0
                 ;;
             *)
-                log_error "Invalid choice. Stopping installation."
-                exit 1
+                log_error "Invalid choice. Using reload-only as default."
+                echo "reload_now"
+                return 0
                 ;;
         esac
+    else
+        # No SSH via WiFi detected, safe to reload immediately
+        echo "reload_now"
     fi
 }
 

@@ -224,14 +224,33 @@ main() {
         done
     fi
 
+    # Handle deferred NetworkManager restart
+    if [[ "${RESTART_NETWORKMANAGER_LATER:-false}" == "true" ]]; then
+        log_info "Restarting NetworkManager to apply configuration changes..."
+        if systemctl restart NetworkManager 2>/dev/null; then
+            log_success "NetworkManager restarted successfully"
+        else
+            log_warn "Failed to restart NetworkManager - you may need to restart manually"
+        fi
+        echo
+    fi
+
     # Final summary
     log_success "Installation completed successfully!"
     echo
     log_info "Next steps:"
-    log_info "1. Reboot the system: sudo reboot"
-    log_info "2. Connect to WiFi: USBSerial-Console"
-    log_info "3. Access web interface: http://192.168.44.1/"
-    log_info "4. Connect USB serial devices and access via /dev/usbserial-X[.Y]"
+    if [[ "${RESTART_NETWORKMANAGER_LATER:-false}" == "true" ]]; then
+        log_info "1. NetworkManager has been restarted (WiFi may have disconnected)"
+        log_info "2. Reboot the system: sudo reboot"
+        log_info "3. Connect to WiFi: USBSerial-Console"
+        log_info "4. Access web interface: http://192.168.44.1/"
+        log_info "5. Connect USB serial devices and access via /dev/usbserial-X[.Y]"
+    else
+        log_info "1. Reboot the system: sudo reboot"
+        log_info "2. Connect to WiFi: USBSerial-Console"
+        log_info "3. Access web interface: http://192.168.44.1/"
+        log_info "4. Connect USB serial devices and access via /dev/usbserial-X[.Y]"
+    fi
     echo
     log_info "For troubleshooting, check logs in: ${LOG_DIR}"
 }
