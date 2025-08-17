@@ -275,7 +275,7 @@ generate_nftables_config() {
     }
 
     # Ensure cleanup on exit
-    trap "rm -f '$temp_config'" EXIT
+    trap 'rm -f "$temp_config"' EXIT
 
     # Read template and substitute variables
     if ! sed -e "s|{{WIFI_INTERFACE}}|$wifi_iface|g" \

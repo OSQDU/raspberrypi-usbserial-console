@@ -96,8 +96,10 @@ backup_file() {
 
     if [[ -f "$file" ]]; then
         mkdir -p "$backup_dir"
-        local timestamp=$(date +%Y%m%d-%H%M%S)
-        local backup_file="$backup_dir/$(basename "$file").bak.$timestamp"
+        local timestamp
+        timestamp=$(date +%Y%m%d-%H%M%S)
+        local backup_file
+        backup_file="$backup_dir/$(basename "$file").bak.$timestamp"
         cp "$file" "$backup_file"
         log_info "Backed up $file to $backup_file"
     fi
@@ -173,7 +175,11 @@ manage_service() {
             log_info "Reloaded service: $service"
             ;;
         status)
-            systemctl is-active --quiet "$service" && log_success "$service is running" || log_warn "$service is not running"
+            if systemctl is-active --quiet "$service"; then
+                log_success "$service is running"
+            else
+                log_warn "$service is not running"
+            fi
             ;;
         *)
             error_exit "Unknown service action: $action"
@@ -265,7 +271,8 @@ validate_ip() {
 
     if [[ $ip =~ $regex ]]; then
         local IFS='.'
-        local -a octets=($ip)
+        local -a octets
+        read -ra octets <<< "${ip//./ }"
         [[ ${octets[0]} -le 255 && ${octets[1]} -le 255 && ${octets[2]} -le 255 && ${octets[3]} -le 255 ]]
     else
         return 1
