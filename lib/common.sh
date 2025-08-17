@@ -31,6 +31,7 @@ log_error() {
 
 log_debug() {
     [[ "${DEBUG:-0}" == "1" ]] && echo -e "[DEBUG] $(date '+%H:%M:%S') $*" >&2
+    return 0
 }
 
 # Load global configuration
