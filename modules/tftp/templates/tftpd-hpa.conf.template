@@ -1,0 +1,14 @@
+# /etc/default/tftpd-hpa
+# TFTP server configuration - unified file sharing
+
+TFTP_USERNAME="tftp"
+TFTP_DIRECTORY="{{SHARED_DIR}}"
+TFTP_ADDRESS="0.0.0.0:69"
+
+# Options:
+# -c: Allow creation of new files (uploads go to uploadonly/ subdirectory)
+# -s: Secure mode (change root to TFTP_DIRECTORY)
+# -v: Verbose logging
+# --create: Allow file creation
+# --umask 027: Create files with restricted permissions (group read, no other access)
+TFTP_OPTIONS="-c -s -v --create --umask 027"

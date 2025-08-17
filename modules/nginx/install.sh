@@ -174,52 +174,41 @@ deploy_upload_interface() {
 }
 
 configure_upload_permissions() {
-    log_info "Configuring upload permissions..."
+    log_info "Configuring upload permissions with shared group..."
+
+    # Add www-data to upload group (group created by shared module)
+    if ! usermod -a -G upload www-data; then
+        log_error "Failed to add www-data to upload group"
+        return 1
+    fi
 
     # Create nginx upload temporary directory
-    if ! mkdir -p /tmp/nginx_upload; then
+    if ! mkdir -p /tmp/nginx_uploads; then
         log_error "Failed to create nginx upload directory"
         return 1
     fi
 
-    # Set ownership and permissions for upload directory
-    if ! chown www-data:www-data /tmp/nginx_upload; then
+    # Set ownership and permissions for temp upload directory
+    if ! chown www-data:upload /tmp/nginx_uploads; then
         log_error "Failed to set ownership on nginx upload directory"
         return 1
     fi
 
-    if ! chmod 755 /tmp/nginx_upload; then
+    if ! chmod 775 /tmp/nginx_uploads; then
         log_error "Failed to set permissions on nginx upload directory"
         return 1
     fi
 
-    # Ensure shared directory exists and has proper permissions
-    if ! mkdir -p "${SHARED_DIR}"; then
-        log_error "Failed to create shared directory"
-        return 1
-    fi
-
-    # Set ownership and permissions for shared directory
-    if ! chown www-data:www-data "${SHARED_DIR}"; then
-        log_error "Failed to set ownership on shared directory"
-        return 1
-    fi
-
-    if ! chmod 755 "${SHARED_DIR}"; then
-        log_error "Failed to set permissions on shared directory"
-        return 1
-    fi
-
-    # Test www-data write access
-    if ! su -s /bin/sh www-data -c "touch ${SHARED_DIR}/.nginx-test" 2>/dev/null; then
-        log_error "www-data user cannot write to ${SHARED_DIR}"
+    # Test www-data write access to uploadonly directory (created by shared module)
+    if ! su -s /bin/sh www-data -c "touch ${SHARED_DIR}/uploadonly/.nginx-test" 2>/dev/null; then
+        log_error "www-data user cannot write to ${SHARED_DIR}/uploadonly"
         return 1
     else
-        rm -f "${SHARED_DIR}/.nginx-test"
-        log_info "Verified www-data write access to ${SHARED_DIR}"
+        rm -f "${SHARED_DIR}/uploadonly/.nginx-test"
+        log_info "Verified www-data write access to ${SHARED_DIR}/uploadonly"
     fi
 
-    log_info "Upload permissions configured successfully"
+    log_info "Upload permissions configured successfully with shared group"
 }
 
 configure_nginx_service() {
