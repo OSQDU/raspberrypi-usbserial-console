@@ -83,14 +83,17 @@ main() {
     # Configure IP forwarding
     configure_ip_forwarding || network_error_exit "Failed to configure IP forwarding"
 
-    # Configure NAT routing
-    configure_nat_routing || network_error_exit "Failed to configure NAT routing"
+    # Configure Wi-Fi country to unblock radio
+    configure_wifi_country || network_error_exit "Failed to configure WiFi country"
 
     # Configure NetworkManager
     configure_network_manager || network_error_exit "Failed to configure NetworkManager"
 
     # Create WiFi hotspot
     create_wifi_hotspot || network_error_exit "Failed to create WiFi hotspot"
+
+    # Configure NAT routing (after network setup is complete)
+    configure_nat_routing || network_error_exit "Failed to configure NAT routing"
 
     # Setup dynamic issue file updates
     setup_issue_updates || network_error_exit "Failed to setup issue file updates"
@@ -162,6 +165,61 @@ configure_nat_routing() {
     systemctl enable setup-nat
 
     log_info "Dynamic NAT routing configured"
+}
+
+configure_wifi_country() {
+    log_info "Configuring Wi-Fi country to unblock radio..."
+
+    # Check if rfkill shows Wi-Fi as blocked
+    if rfkill list wifi | grep -q "Soft blocked: yes"; then
+        log_info "Wi-Fi radio is soft blocked, configuring country..."
+        
+        # Set Wi-Fi country using raspi-config nonint
+        if command -v raspi-config >/dev/null 2>&1; then
+            if ! raspi-config nonint do_wifi_country "${WIFI_COUNTRY_CODE}"; then
+                log_warn "Failed to set Wi-Fi country via raspi-config, trying alternative method..."
+                
+                # Alternative: directly write to wpa_supplicant
+                if [[ ! -f /etc/wpa_supplicant/wpa_supplicant.conf ]]; then
+                    cat > /etc/wpa_supplicant/wpa_supplicant.conf << EOF
+country=${WIFI_COUNTRY_CODE}
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+EOF
+                    chmod 600 /etc/wpa_supplicant/wpa_supplicant.conf
+                else
+                    # Update existing file if country not set
+                    if ! grep -q "^country=" /etc/wpa_supplicant/wpa_supplicant.conf; then
+                        sed -i "1i country=${WIFI_COUNTRY_CODE}" /etc/wpa_supplicant/wpa_supplicant.conf
+                    fi
+                fi
+            fi
+        else
+            log_warn "raspi-config not found, setting country via wpa_supplicant..."
+            
+            # Create or update wpa_supplicant config
+            if [[ ! -f /etc/wpa_supplicant/wpa_supplicant.conf ]]; then
+                cat > /etc/wpa_supplicant/wpa_supplicant.conf << EOF
+country=${WIFI_COUNTRY_CODE}
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+EOF
+                chmod 600 /etc/wpa_supplicant/wpa_supplicant.conf
+            else
+                # Update existing file if country not set
+                if ! grep -q "^country=" /etc/wpa_supplicant/wpa_supplicant.conf; then
+                    sed -i "1i country=${WIFI_COUNTRY_CODE}" /etc/wpa_supplicant/wpa_supplicant.conf
+                fi
+            fi
+        fi
+
+        # Unblock Wi-Fi radio
+        rfkill unblock wifi 2>/dev/null || true
+        
+        log_info "Wi-Fi country set to: ${WIFI_COUNTRY_CODE}"
+    else
+        log_info "Wi-Fi radio is not blocked"
+    fi
 }
 
 install_dhcpv6_hooks() {
