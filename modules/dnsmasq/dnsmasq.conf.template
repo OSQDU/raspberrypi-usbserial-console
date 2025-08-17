@@ -23,15 +23,15 @@ no-resolv
 no-poll
 
 # Modern DNS servers with DoH/DoT support
-server=1.1.1.1@eth0         # Cloudflare Primary
-server=1.0.0.1@eth0         # Cloudflare Secondary
-server=9.9.9.9@eth0         # Quad9 Primary
-server=149.112.112.112@eth0 # Quad9 Secondary
-server=2606:4700:4700::1111@eth0  # Cloudflare IPv6
-server=2620:fe::fe@eth0     # Quad9 IPv6
+server=1.1.1.1@{{ETHERNET_INTERFACE}}         # Cloudflare Primary
+server=1.0.0.1@{{ETHERNET_INTERFACE}}         # Cloudflare Secondary
+server=9.9.9.9@{{ETHERNET_INTERFACE}}         # Quad9 Primary
+server=149.112.112.112@{{ETHERNET_INTERFACE}} # Quad9 Secondary
+server=2606:4700:4700::1111@{{ETHERNET_INTERFACE}}  # Cloudflare IPv6
+server=2620:fe::fe@{{ETHERNET_INTERFACE}}     # Quad9 IPv6
 
 # Interface Binding
-interface=wlan0
+interface={{WIFI_INTERFACE}}
 bind-interfaces
 
 # Local Domain Configuration
@@ -40,15 +40,15 @@ expand-hosts
 domain=usbserial.local
 
 # DHCP Configuration
-dhcp-range=wlan0,192.168.44.100,192.168.44.200,12h
+dhcp-range={{WIFI_INTERFACE}},192.168.44.100,192.168.44.200,12h
 dhcp-lease-max=100
 dhcp-leasefile=/var/lib/dhcp/dnsmasq.leases
 dhcp-authoritative
 
 # IPv6 Configuration
-dhcp-range=wlan0,2001:db8:44::100,2001:db8:44::200,ra-only,1h
+dhcp-range={{WIFI_INTERFACE}},2001:db8:44::100,2001:db8:44::200,ra-only,1h
 enable-ra
-ra-param=wlan0,60,1800
+ra-param={{WIFI_INTERFACE}},60,1800
 
 # DHCP Options
 dhcp-option=option:domain-search,usbserial.local
