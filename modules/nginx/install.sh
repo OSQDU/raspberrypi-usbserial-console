@@ -122,6 +122,12 @@ deploy_nginx_config() {
         return 1
     fi
 
+    # Create password file for directory listing
+    if ! create_nginx_auth; then
+        log_error "Failed to create nginx authentication"
+        return 1
+    fi
+
     # Test nginx configuration
     if command -v nginx >/dev/null 2>&1; then
         if ! nginx -t 2>/dev/null; then
@@ -209,6 +215,29 @@ configure_upload_permissions() {
     fi
 
     log_info "Upload permissions configured successfully with shared group"
+}
+
+create_nginx_auth() {
+    log_info "Creating nginx authentication for directory listing..."
+
+    # Install apache2-utils for htpasswd if not available
+    if ! command -v htpasswd >/dev/null 2>&1; then
+        install_package apache2-utils
+    fi
+
+    # Create htpasswd file with default samba credentials
+    if ! echo "${DEFAULT_SAMBA_PASSWORD}" | htpasswd -c -i /etc/nginx/.htpasswd "${DEFAULT_SAMBA_USER}"; then
+        log_error "Failed to create nginx password file"
+        return 1
+    fi
+
+    # Set proper permissions
+    chmod 644 /etc/nginx/.htpasswd
+    chown root:www-data /etc/nginx/.htpasswd
+
+    log_info "Nginx authentication created successfully"
+    log_info "  Username: ${DEFAULT_SAMBA_USER}"
+    log_info "  Password: ${DEFAULT_SAMBA_PASSWORD} (same as SMB credentials)"
 }
 
 configure_nginx_service() {

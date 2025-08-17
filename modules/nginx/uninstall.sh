@@ -26,6 +26,9 @@ main() {
     # Remove temporary upload directories
     rm -rf /tmp/nginx_uploads
 
+    # Remove password file
+    rm -f /etc/nginx/.htpasswd
+
     # Remove www-data from upload group
     if getent group upload >/dev/null 2>&1; then
         gpasswd -d www-data upload 2>/dev/null || true
