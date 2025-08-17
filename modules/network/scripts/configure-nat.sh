@@ -25,7 +25,7 @@ readonly NFTABLES_TEMPLATE="${NFTABLES_TEMPLATE:-${TEMPLATE_DIR}/nftables.conf.t
 # Logging with error levels
 log() {
     local level="${1:-INFO}"
-    local message="$2"
+    local message="${2:-}"
     logger -t "usb-serial-nat" -p "daemon.${level}" "${message}"
     echo "[$(date '+%H:%M:%S')] [${level}] ${message}" >&2
 }
