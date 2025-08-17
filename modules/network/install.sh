@@ -48,8 +48,11 @@ validate_module_files() {
         "templates/dhcpcd-ipv6.conf"
         "templates/networkmanager/99-unmanage-wlan0.conf"
         "templates/networkmanager/99-disable-dnsmasq.conf"
+        "templates/update-issue.service"
+        "templates/update-issue.timer"
         "scripts/configure-nat.sh"
         "scripts/dhcpcd-hooks.sh"
+        "scripts/update-issue.sh"
         "10-router.conf"
     )
 
@@ -80,6 +83,9 @@ main() {
 
     # Configure NetworkManager
     configure_network_manager || network_error_exit "Failed to configure NetworkManager"
+
+    # Setup dynamic issue file updates
+    setup_issue_updates || network_error_exit "Failed to setup issue file updates"
 
     log_success "Network module installed successfully"
 }
@@ -217,6 +223,9 @@ install_dhcpv6_hooks() {
 configure_network_manager() {
     log_info "Configuring NetworkManager for hostapd compatibility..."
 
+    # Check for active SSH connections via WiFi
+    check_ssh_wifi_warning
+
     # Create NetworkManager config directory
     mkdir -p /etc/NetworkManager/conf.d
 
@@ -228,6 +237,83 @@ configure_network_manager() {
     systemctl reload NetworkManager 2>/dev/null || true
 
     log_info "NetworkManager configured for AP mode compatibility"
+}
+
+check_ssh_wifi_warning() {
+    # Check for active SSH connections over wireless interfaces
+    local ssh_via_wifi=false
+    local ssh_connections=""
+
+    # Get all active SSH connections
+    ssh_connections=$(ss -tn state established '( dport = :ssh or sport = :ssh )' 2>/dev/null || true)
+
+    if [[ -n "$ssh_connections" ]]; then
+        # Check each connection to see if it's over a wireless interface
+        while read -r line; do
+            if [[ "$line" =~ ESTAB ]]; then
+                # Extract local IP from the connection
+                local_ip=$(echo "$line" | awk '{print $4}' | cut -d: -f1)
+
+                # Find which interface this IP belongs to
+                interface=$(ip route get "$local_ip" 2>/dev/null | grep -o 'dev [^ ]*' | cut -d' ' -f2 || echo "")
+
+                # Check if it's a wireless interface
+                if [[ -n "$interface" ]] && [[ -d "/sys/class/net/$interface/wireless" ]]; then
+                    ssh_via_wifi=true
+                    break
+                fi
+            fi
+        done <<< "$ssh_connections"
+    fi
+
+    if [[ "$ssh_via_wifi" == "true" ]]; then
+        log_warn "WARNING: Active SSH connection detected via wireless interface"
+        log_warn "Configuring NetworkManager will disrupt this SSH session"
+        log_warn "It's recommended to connect via Ethernet before proceeding"
+        echo
+        echo "Options:"
+        echo "  1. Stop installation and connect via Ethernet"
+        echo "  2. Continue anyway (will likely disconnect this SSH session)"
+        echo
+        read -p "Enter choice (1/2): " choice
+
+        case "$choice" in
+            1)
+                log_info "Installation stopped. Please connect via Ethernet and restart."
+                exit 0
+                ;;
+            2)
+                log_warn "Continuing - this SSH session will likely be disconnected"
+                sleep 3
+                ;;
+            *)
+                log_error "Invalid choice. Stopping installation."
+                exit 1
+                ;;
+        esac
+    fi
+}
+
+setup_issue_updates() {
+    log_info "Setting up dynamic issue file updates..."
+
+    # Deploy the update script
+    cp "scripts/update-issue.sh" "/usr/local/bin/update-issue"
+    chmod +x /usr/local/bin/update-issue
+
+    # Deploy systemd service and timer
+    cp "templates/update-issue.service" "/etc/systemd/system/"
+    cp "templates/update-issue.timer" "/etc/systemd/system/"
+
+    # Enable and start the timer
+    systemctl daemon-reload
+    systemctl enable update-issue.timer
+    systemctl start update-issue.timer
+
+    # Run once immediately to populate the file
+    /usr/local/bin/update-issue
+
+    log_info "Dynamic issue file updates configured"
 }
 
 main "$@"

@@ -1,0 +1,10 @@
+[Unit]
+Description=Update network information in issue file every 30 seconds
+Requires=update-issue.service
+
+[Timer]
+OnBootSec=30sec
+OnUnitActiveSec=30sec
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=Update network information in issue file
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/update-issue
+User=root
+
+[Install]
+WantedBy=multi-user.target
