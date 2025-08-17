@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Source libraries
-source "lib/common.sh"
+# source "lib/common.sh", this will be sourced by lib/modules.sh
 source "lib/modules.sh"
 
 # Default modules for full installation

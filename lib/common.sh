@@ -1,6 +1,10 @@
 #!/bin/bash
 # lib/common.sh - Common utilities and functions for USB Serial Console setup
 
+# Prevent multiple sourcing
+[[ -n "${COMMON_SH_LOADED:-}" ]] && return 0
+readonly COMMON_SH_LOADED=1
+
 # Color codes for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
