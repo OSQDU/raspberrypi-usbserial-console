@@ -227,7 +227,7 @@ install_modules() {
     local current=0
 
     for module in "${resolved_modules[@]}"; do
-        ((current++))
+        current=$((current + 1))
         show_progress "$current" "$total" "Installing $module..."
         log_debug "About to install module: $module"
         install_module "$module" || {
