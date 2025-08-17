@@ -11,6 +11,9 @@ ssid={{WIFI_SSID}}
 [wifi-security]
 key-mgmt=wpa-psk
 psk={{WIFI_PASSWORD}}
+proto=rsn
+pairwise=ccmp
+group=ccmp
 
 [ipv4]
 method=manual
