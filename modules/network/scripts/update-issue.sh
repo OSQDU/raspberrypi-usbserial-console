@@ -6,6 +6,10 @@ set -euo pipefail
 # Create issue directory if it doesn't exist
 mkdir -p /etc/issue.d
 
+# State file to track if we've had an IP address before
+STATE_FILE="/var/lib/usbserial/ip-state"
+mkdir -p "$(dirname "${STATE_FILE}")"
+
 # Function to get interface IP
 get_interface_ip() {
     local interface="$1"
@@ -56,6 +60,22 @@ wlan0_ipv6=$(get_interface_ip "wlan0" "6")
 gateway_ipv4=$(get_default_gateway "4")
 gateway_ipv6=$(get_default_gateway "6")
 
+# Check if we have any IP addresses now
+has_ip=false
+if [[ "${eth0_ipv4}" != "not assigned" && "${eth0_ipv4}" != "not available" ]] || \
+   [[ "${eth0_ipv6}" != "not assigned" && "${eth0_ipv6}" != "not available" ]] || \
+   [[ "${wlan0_ipv4}" != "not assigned" && "${wlan0_ipv4}" != "not available" ]] || \
+   [[ "${wlan0_ipv6}" != "not assigned" && "${wlan0_ipv6}" != "not available" ]]; then
+    has_ip=true
+fi
+
+# Check if this is the first time we got an IP address
+first_ip=false
+if [[ "${has_ip}" == "true" && ! -f "${STATE_FILE}" ]]; then
+    first_ip=true
+    echo "$(date): First IP address detected" > "${STATE_FILE}"
+fi
+
 # Generate the issue file
 cat > /etc/issue.d/IP.issue << EOF
 ================================================================================
@@ -69,3 +89,8 @@ Routing:
 ================================================================================
 
 EOF
+
+# Restart getty@tty1 on first IP address to refresh the login prompt
+if [[ "${first_ip}" == "true" ]]; then
+    systemctl restart getty@tty1 2>/dev/null || true
+fi
