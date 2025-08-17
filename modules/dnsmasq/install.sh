@@ -52,11 +52,19 @@ validate_module_files() {
     log_debug "Module files validated"
 }
 
+ensure_dnsmasq_package() {
+    log_info "Installing dnsmasq package..."
+    apt install -y dnsmasq
+}
+
 main() {
     log_info "Installing dnsmasq module..."
 
     # Validate module files exist
     validate_module_files
+
+    # Ensure dnsmasq package is installed
+    ensure_dnsmasq_package || dnsmasq_error_exit "Failed to install dnsmasq package"
 
     # Deploy configuration
     deploy_dnsmasq_config || dnsmasq_error_exit "Failed to deploy dnsmasq configuration"
