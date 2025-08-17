@@ -36,7 +36,7 @@ cleanup_on_error() {
 # Validate module files exist
 validate_module_files() {
     local required_files=(
-        "smb.conf"
+        "templates/smb.conf.template"
     )
 
     for file in "${required_files[@]}"; do
@@ -73,9 +73,9 @@ main() {
 deploy_samba_config() {
     log_info "Deploying Samba configuration..."
 
-    # Validate source file
-    if [[ ! -f "smb.conf" ]]; then
-        log_error "Source samba configuration not found: smb.conf"
+    # Validate template file
+    if [[ ! -f "templates/smb.conf.template" ]]; then
+        log_error "Source samba configuration template not found: templates/smb.conf.template"
         return 1
     fi
 
@@ -88,9 +88,12 @@ deploy_samba_config() {
     # Backup existing configuration
     backup_file "/etc/samba/smb.conf"
 
-    # Deploy configuration
-    if ! replace_file "smb.conf" "/etc/samba/smb.conf"; then
-        log_error "Failed to deploy samba configuration"
+    # Deploy configuration from template
+    if ! process_template "templates/smb.conf.template" "/etc/samba/smb.conf" \
+        "WIFI_INTERFACE" "${WIFI_INTERFACE}" \
+        "SHARED_DIR" "${SHARED_DIR}" \
+        "DEFAULT_SAMBA_USER" "${DEFAULT_SAMBA_USER}"; then
+        log_error "Failed to deploy samba configuration from template"
         return 1
     fi
 
@@ -116,9 +119,9 @@ deploy_samba_config() {
 configure_samba_users() {
     log_info "Configuring Samba users..."
 
-    # Check if pi user exists on the system
-    if ! id pi >/dev/null 2>&1; then
-        log_error "System user 'pi' does not exist"
+    # Check if configured user exists on the system
+    if ! id "${DEFAULT_SAMBA_USER}" >/dev/null 2>&1; then
+        log_error "System user '${DEFAULT_SAMBA_USER}' does not exist"
         return 1
     fi
 
@@ -133,34 +136,34 @@ configure_samba_users() {
         return 1
     fi
 
-    # Check if pi user already exists in Samba
-    if ! pdbedit -L 2>/dev/null | grep -q "^pi:"; then
-        log_info "Adding pi user to Samba..."
+    # Check if configured user already exists in Samba
+    if ! pdbedit -L 2>/dev/null | grep -q "^${DEFAULT_SAMBA_USER}:"; then
+        log_info "Adding ${DEFAULT_SAMBA_USER} user to Samba..."
 
-        # Add pi user with default password (using non-interactive mode)
-        if ! echo -e "raspberry\nraspberry" | smbpasswd -a pi -s; then
-            log_error "Failed to add pi user to Samba"
+        # Add user with default password (using non-interactive mode)
+        if ! echo -e "${DEFAULT_SAMBA_PASSWORD}\n${DEFAULT_SAMBA_PASSWORD}" | smbpasswd -a "${DEFAULT_SAMBA_USER}" -s; then
+            log_error "Failed to add ${DEFAULT_SAMBA_USER} user to Samba"
             return 1
         fi
 
-        log_info "Samba user 'pi' added successfully"
+        log_info "Samba user '${DEFAULT_SAMBA_USER}' added successfully"
     else
-        log_info "Samba user 'pi' already exists"
+        log_info "Samba user '${DEFAULT_SAMBA_USER}' already exists"
     fi
 
     # Ensure shared directory exists and has proper permissions
-    if ! mkdir -p /srv/shared; then
+    if ! mkdir -p "${SHARED_DIR}"; then
         log_error "Failed to create shared directory"
         return 1
     fi
 
-    # Set ownership (may fail if pi user doesn't exist)
-    if ! chown pi:pi /srv/shared 2>/dev/null; then
-        log_warn "Could not set ownership of /srv/shared to pi:pi"
+    # Set ownership (may fail if user doesn't exist)
+    if ! chown "${DEFAULT_SAMBA_USER}:${DEFAULT_SAMBA_USER}" "${SHARED_DIR}" 2>/dev/null; then
+        log_warn "Could not set ownership of ${SHARED_DIR} to ${DEFAULT_SAMBA_USER}:${DEFAULT_SAMBA_USER}"
         # Set safe fallback permissions
-        chmod 755 /srv/shared
+        chmod 755 "${SHARED_DIR}"
     else
-        chmod 755 /srv/shared
+        chmod 755 "${SHARED_DIR}"
     fi
 
     log_info "Samba users configured successfully"

@@ -8,7 +8,7 @@
     netbios name = USBSERIAL-PI
 
     # Network configuration
-    interfaces = wlan0 lo
+    interfaces = {{WIFI_INTERFACE}} lo
     bind interfaces only = yes
 
     # Security configuration
@@ -43,7 +43,7 @@
 # Public file share - unified directory
 [shared]
     comment = USB Serial Console Shared Files
-    path = /srv/shared
+    path = {{SHARED_DIR}}
 
     # Access permissions
     public = yes
@@ -54,8 +54,8 @@
     # File creation settings
     create mask = 0664
     directory mask = 0775
-    force user = pi
-    force group = pi
+    force user = {{DEFAULT_SAMBA_USER}}
+    force group = {{DEFAULT_SAMBA_USER}}
 
     # Disable recycle bin and version control
     veto files = /.*/
