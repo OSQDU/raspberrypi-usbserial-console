@@ -229,7 +229,12 @@ install_modules() {
     for module in "${resolved_modules[@]}"; do
         ((current++))
         show_progress "$current" "$total" "Installing $module..."
-        install_module "$module"
+        log_debug "About to install module: $module"
+        install_module "$module" || {
+            log_error "Installation failed for module: $module"
+            return 1
+        }
+        log_debug "Successfully installed module: $module"
     done
 
     echo
