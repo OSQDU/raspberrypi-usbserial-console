@@ -12,6 +12,27 @@ readonly NC='\033[0m' # No Color
 readonly PROJECT_NAME="USB Serial Console"
 readonly PROJECT_VERSION="2.0"
 
+# Logging functions
+log_info() {
+    echo -e "${BLUE}[INFO]${NC} $(date '+%H:%M:%S') $*" >&2
+}
+
+log_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $(date '+%H:%M:%S') $*" >&2
+}
+
+log_warn() {
+    echo -e "${YELLOW}[WARN]${NC} $(date '+%H:%M:%S') $*" >&2
+}
+
+log_error() {
+    echo -e "${RED}[ERROR]${NC} $(date '+%H:%M:%S') $*" >&2
+}
+
+log_debug() {
+    [[ "${DEBUG:-0}" == "1" ]] && echo -e "[DEBUG] $(date '+%H:%M:%S') $*" >&2
+}
+
 # Load global configuration
 load_global_config() {
     local config_file
@@ -44,27 +65,6 @@ load_global_config() {
 
 # Auto-load configuration when this library is sourced
 load_global_config
-
-# Logging functions
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $(date '+%H:%M:%S') $*" >&2
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $(date '+%H:%M:%S') $*" >&2
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $(date '+%H:%M:%S') $*" >&2
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $(date '+%H:%M:%S') $*" >&2
-}
-
-log_debug() {
-    [[ "${DEBUG:-0}" == "1" ]] && echo -e "[DEBUG] $(date '+%H:%M:%S') $*" >&2
-}
 
 # Error handling
 error_exit() {
