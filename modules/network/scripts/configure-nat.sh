@@ -219,7 +219,7 @@ update_nftables_rules() {
     local ipv6_prefix="$1"
     local has_ipv6_upstream="$2"
 
-    log "Updating nftables rules with IPv6 prefix: ${ipv6_prefix}"
+    log_info "Updating nftables rules with IPv6 prefix: ${ipv6_prefix}"
 
     # Prepare template variables
     local ipv6_nat_rule=""
@@ -252,7 +252,7 @@ update_nftables_rules() {
 
     # Reload nftables
     nft -f /etc/nftables.conf
-    log "nftables rules updated"
+    log_info "nftables rules updated"
 }
 
 # Generate nftables config from template
@@ -274,8 +274,11 @@ generate_nftables_config() {
         error_exit "Failed to create temporary file"
     }
 
-    # Ensure cleanup on exit
-    trap 'rm -f "${temp_config}"' EXIT
+    # Ensure cleanup on function exit
+    cleanup_temp() {
+        [[ -n "${temp_config:-}" ]] && rm -f "${temp_config}"
+    }
+    trap cleanup_temp RETURN
 
     # Read template and substitute variables
     if ! sed -e "s|{{WIFI_INTERFACE}}|${wifi_iface}|g" \
@@ -311,28 +314,13 @@ update_dnsmasq_ipv6() {
     local ipv6_prefix="$1"
 
     if [ -n "${ipv6_prefix}" ]; then
-        log "Updating dnsmasq with IPv6 prefix: ${ipv6_prefix}"
-
-        # Extract prefix base (remove ::/<number> suffix)
-        local ipv6_prefix_base="${ipv6_prefix%::/*}"
-
-        # Generate dynamic config from template
-        if ! sed -e "s|{{WIFI_INTERFACE}}|${WIFI_INTERFACE}|g" \
-                -e "s|{{IPV6_PREFIX_BASE}}|${ipv6_prefix_base}|g" \
-                "${TEMPLATE_DIR}/dnsmasq-ipv6-dynamic.conf" > /etc/dnsmasq.d/ipv6-dynamic.conf; then
-            log_error "Failed to generate dnsmasq IPv6 configuration"
-            return 1
-        fi
+        log_info "IPv6 prefix available: ${ipv6_prefix} (dnsmasq already configured)"
     else
-        # Remove dynamic IPv6 config if no prefix
-        rm -f /etc/dnsmasq.d/ipv6-dynamic.conf
+        log_info "No IPv6 prefix available"
     fi
 
-    # Reload dnsmasq
-    if systemctl is-active --quiet dnsmasq; then
-        systemctl reload dnsmasq
-        log "dnsmasq configuration reloaded"
-    fi
+    # Note: dnsmasq IPv6 configuration is handled statically in main config
+    # No dynamic updates needed as the main config covers all scenarios
 }
 
 # Main configuration function
@@ -399,11 +387,11 @@ case "${1:-configure}" in
         ;;
     dhcpv6-hook)
         # Called from dhcpcd hook
-        log "DHCPv6-PD event detected, reconfiguring..."
+        log_info "DHCPv6-PD event detected, reconfiguring..."
         main
         ;;
     cleanup)
-        log "Cleaning up NAT configuration"
+        log_info "Cleaning up NAT configuration"
         nft flush ruleset 2>/dev/null || true
         rm -f /etc/dnsmasq.d/ipv6-dynamic.conf
         systemctl reload dnsmasq 2>/dev/null || true
