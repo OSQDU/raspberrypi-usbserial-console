@@ -116,6 +116,12 @@ deploy_nginx_config() {
         return 1
     fi
 
+    # Configure upload permissions
+    if ! configure_upload_permissions; then
+        log_error "Failed to configure upload permissions"
+        return 1
+    fi
+
     # Test nginx configuration
     if command -v nginx >/dev/null 2>&1; then
         if ! nginx -t 2>/dev/null; then
@@ -165,6 +171,55 @@ deploy_upload_interface() {
 
     log_info "Upload interface deployed successfully"
     log_info "Upload interface will be available at: http://192.168.44.1/upload.html"
+}
+
+configure_upload_permissions() {
+    log_info "Configuring upload permissions..."
+
+    # Create nginx upload temporary directory
+    if ! mkdir -p /tmp/nginx_upload; then
+        log_error "Failed to create nginx upload directory"
+        return 1
+    fi
+
+    # Set ownership and permissions for upload directory
+    if ! chown www-data:www-data /tmp/nginx_upload; then
+        log_error "Failed to set ownership on nginx upload directory"
+        return 1
+    fi
+
+    if ! chmod 755 /tmp/nginx_upload; then
+        log_error "Failed to set permissions on nginx upload directory"
+        return 1
+    fi
+
+    # Ensure shared directory exists and has proper permissions
+    if ! mkdir -p "${SHARED_DIR}"; then
+        log_error "Failed to create shared directory"
+        return 1
+    fi
+
+    # Set ownership and permissions for shared directory
+    if ! chown www-data:www-data "${SHARED_DIR}"; then
+        log_error "Failed to set ownership on shared directory"
+        return 1
+    fi
+
+    if ! chmod 755 "${SHARED_DIR}"; then
+        log_error "Failed to set permissions on shared directory"
+        return 1
+    fi
+
+    # Test www-data write access
+    if ! su -s /bin/sh www-data -c "touch ${SHARED_DIR}/.nginx-test" 2>/dev/null; then
+        log_error "www-data user cannot write to ${SHARED_DIR}"
+        return 1
+    else
+        rm -f "${SHARED_DIR}/.nginx-test"
+        log_info "Verified www-data write access to ${SHARED_DIR}"
+    fi
+
+    log_info "Upload permissions configured successfully"
 }
 
 configure_nginx_service() {
