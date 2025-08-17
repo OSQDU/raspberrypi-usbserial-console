@@ -29,11 +29,11 @@ readonly DEFAULT_MODULES=(
 show_banner() {
     cat << 'EOF'
 ╔══════════════════════════════════════════════════════════════╗
-║                    USB Serial Console                        ║
-║                    Installation Script                       ║
+║                      USB Serial Console                      ║
+║                         Installation                         ║
 ║                                                              ║
-║  Modern, modular Raspberry Pi network management appliance  ║
-║  with USB serial console access and file sharing.           ║
+║  Modern, modular Raspberry Pi network management appliance   ║
+║  with USB serial console access and file sharing.            ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF
     echo
